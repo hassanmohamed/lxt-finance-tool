@@ -198,10 +198,87 @@ def refresh_access_token(
         "refresh_token": data.get("refresh_token", refresh_token),
     }
 
+# ═══════════════════════════════════════════════════════════════
+# GitHub Gist — Persistent Token Storage
+# ═══════════════════════════════════════════════════════════════
+GIST_FILENAME = "lxt_qb_tokens.json"
+GIST_API = "https://api.github.com/gists"
+
+
+def _get_github_headers() -> dict:
+    """Return GitHub API headers using the token from secrets."""
+    token = st.secrets.get("GITHUB_TOKEN", "")
+    return {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+
+def _find_token_gist() -> str | None:
+    """Find the existing private gist ID by filename, or return None."""
+    try:
+        resp = requests.get(GIST_API, headers=_get_github_headers(), timeout=15)
+        if resp.status_code == 200:
+            for gist in resp.json():
+                if GIST_FILENAME in gist.get("files", {}):
+                    return gist["id"]
+    except Exception:
+        pass
+    return None
+
+
+def _load_gist_tokens() -> dict | None:
+    """Load refresh tokens from the private gist. Returns dict {company_key: token}."""
+    gist_id = _find_token_gist()
+    if not gist_id:
+        return None
+    try:
+        resp = requests.get(
+            f"{GIST_API}/{gist_id}", headers=_get_github_headers(), timeout=15
+        )
+        if resp.status_code == 200:
+            import json
+            content = resp.json()["files"][GIST_FILENAME]["content"]
+            return json.loads(content)
+    except Exception:
+        pass
+    return None
+
+
+def _save_gist_tokens(tokens: dict) -> None:
+    """Create or update the private gist with current tokens."""
+    import json
+    payload = {
+        "description": "LXT QuickBooks refresh tokens (auto-managed)",
+        "files": {
+            GIST_FILENAME: {"content": json.dumps(tokens, indent=2)}
+        },
+    }
+    try:
+        gist_id = _find_token_gist()
+        headers = _get_github_headers()
+        if gist_id:
+            requests.patch(
+                f"{GIST_API}/{gist_id}",
+                headers=headers,
+                json=payload,
+                timeout=15,
+            )
+        else:
+            payload["public"] = False
+            requests.post(
+                GIST_API,
+                headers=headers,
+                json=payload,
+                timeout=15,
+            )
+    except Exception:
+        pass
+
 
 def _save_refresh_token(old_token: str, new_token: str) -> None:
     """
-    Replace the old refresh token with the new one in secrets.toml.
+    Replace the old refresh token with the new one in secrets.toml (local).
     This ensures the next run uses the latest single-use token.
     """
     if old_token == new_token or not SECRETS_PATH.exists():
@@ -213,7 +290,6 @@ def _save_refresh_token(old_token: str, new_token: str) -> None:
             content = content.replace(old_token, new_token)
             SECRETS_PATH.write_text(content)
     except Exception:
-        # Non-critical — log but don't crash the pipeline
         pass
 
 
@@ -564,6 +640,10 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     client_secret = st.secrets["QB_CLIENT_SECRET"]
     companies = st.secrets["companies"]
 
+    # Load latest tokens from GitHub Gist (falls back to secrets.toml)
+    gist_tokens = _load_gist_tokens() or {}
+    updated_tokens: dict[str, str] = {}
+
     all_frames: list[pd.DataFrame] = []
     errors: list[str] = []
 
@@ -580,7 +660,8 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
             company = companies[key]
             label = company["label"]
             realm_id = company["realm_id"]
-            refresh_token = company["refresh_token"]
+            # Prefer gist token, fall back to secrets.toml
+            refresh_token = gist_tokens.get(key, company["refresh_token"])
 
             progress.progress(
                 (idx) / total,
@@ -596,8 +677,11 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
                     client_id, client_secret, refresh_token
                 )
 
-                # Auto-save the new refresh token to secrets.toml
+                # Track the new refresh token
                 new_refresh = token_info["refresh_token"]
+                updated_tokens[key] = new_refresh
+
+                # Also save locally (best-effort)
                 if new_refresh != refresh_token:
                     _save_refresh_token(refresh_token, new_refresh)
 
@@ -629,6 +713,10 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
         status_container.update(
             label="Processing complete!", state="complete", expanded=False
         )
+
+    # ── Save updated tokens to GitHub Gist ─────────────────────
+    if updated_tokens:
+        _save_gist_tokens(updated_tokens)
 
     # ── Results ───────────────────────────────────────────────
     st.divider()
