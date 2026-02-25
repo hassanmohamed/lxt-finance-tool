@@ -1,0 +1,472 @@
+﻿Account Name,Account Number ,Mapping,Item,Statement
+210109 Accounts Payable - EGP,210109,Accounts Payable ,B.S,Current Liabilites
+710801 Exchange Gain or Loss,710801,Exchange Gain or Loss,P&L, Non-Operating Expenses
+110216 AAIB EGP,110216,Cash&Cash Eq,B.S,Current Assets
+110201 Cash On Hand,110201,Cash&Cash Eq,B.S,Current Assets
+110215 CIB CPS,110215,Cash&Cash Eq,B.S,Current Assets
+110214 CIB EGP,110214,Cash&Cash Eq,B.S,Current Assets
+110203 CIB USD (deleted),110203,Cash&Cash Eq,B.S,Current Assets
+110204 AAIB EGP (deleted),110204,Cash&Cash Eq,B.S,Current Assets
+110205 AAIB USD (deleted),110205,Cash&Cash Eq,B.S,Current Assets
+110218 AAIB (USD) Bank,110218,Cash&Cash Eq,B.S,Current Assets
+110217 CIB USD Account,110217,Cash&Cash Eq,B.S,Current Assets
+130100 Employee Cash Advances,130100,Other debit balance,B.S,Current Assets
+130106 EMPLOYEES ADVANCES,130106,Other debit balance,B.S,Current Assets
+130402 Other prepaid expenses,130402,Other debit balance,B.S,Current Assets
+130401 Rent - Prepaid Expenses,130401,Other debit balance,B.S,Current Assets
+150402 Accumulated Depreciation,150402,Accumulated Depreciation,B.S,Current Assets
+150401 Computers,150401,PP&E,B.S,Current Assets
+150102 Accumulated Depreciation,150102,Accumulated Depreciation,B.S,Current Assets
+150101 Furniture Equipment & Fixtures,150101,PP&E,B.S,Current Assets
+150302 Accumulated Depreciation,150302,Accumulated Depreciation,B.S,Current Assets
+150301 Electric tools & Equipments,150301,PP&E,B.S,Current Assets
+150702 Accumulated amortisation of Office Leasehold,150702,Accumulated Depreciation,B.S,Current Assets
+150701 Office Leasehold,150701,PP&E,B.S,Current Assets
+150602 Cars Accumulated depletion,150602,Accumulated Depreciation,B.S,Current Assets
+150601 Company Car,150601,PP&E,B.S,Current Assets
+150201 Buildings & Improvements,150201,PP&E,B.S,Current Assets
+150202 Accumulated Depreciation,150202,Accumulated Depreciation,B.S,Current Assets
+230201 Accrued Expenses,230201,Other debit balance,B.S,Current Assets
+230202 Accrued liabilities,230202,Other Credit Balance,B.S,Current Assets
+230110 Accrued Payroll,230110,Other Credit Balance,B.S,Current Assets
+230401 Additional Tax (TD1),230401,Other Credit Balance,B.S,Current Liabilites
+230112 Egypt Payroll Tax Accrual,230112,Other Credit Balance,B.S,Current Assets
+230114 Employee Premium Card Liability,230114,Other Credit Balance,B.S,Current Assets
+230413 Social Insurance,230413,Other Credit Balance,B.S,Current Assets
+260101 LXT CA,260101,Due to IC,B.S,Current Liabilites
+240202 Withholding Tax Liab,240202,Other Credit Balance,B.S,Current Assets
+240201 Income Taxes Payable,240201,Other Credit Balance,B.S,Current Assets
+270102 Lease Liability,270102,Other Credit Balance,B.S,Current Assets
+270103 Deferred Tax Liability,270103,Other Credit Balance,B.S,Current Assets
+530101 Other Direct Cost,530101,Other Direct Cost - COPS Consulting,P&L,Other Cost Cost of Service 
+510702 Allowances,510702,Allowances,P&L,HR Cost-COPS Benefits
+510101 Salaries & Wages,510101,Salaries & Wages,P&L,HR Cost-COPS  Salaries & Wagaies
+510405 EI company,510405,EI company,P&L,HR Cost-COPS  Social insurance
+720101 Interest income,720101,Interest income,P&L,Other Income
+420101 Fee Income,420101,Fee Income,P&L,Revenue
+641401 Bank charges,641401,Bank Charges,P&L,Bank Charges and Fees
+641403 Bank Charges - USD,641403,Bank Charges,P&L,Bank Charges and Fees
+640101 Ground Travel,640101,Ground Travel,P&L,Business Travel & related Cost
+640801 Meals & Entertainment,640801,Meals & Entertainment,P&L,Cafeteria Cost
+640602 Internet Expenses,640602,Computer & Internet Expenses,P&L,Communication Expenses
+640601 Telephone Expense,640601,Telephone Expense,P&L,Communication Expenses
+641501 Legal Fees,641501,Legal,P&L,Legal Fees
+640701 Office Supplies,640701,Office Supplies,P&L,Office Supplies
+641701 Accounting & Audit Fees,641701,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+641703 Consulting Fees,641703,Consulting Fees,P&L,HR Cost-G&A Permanent Employees
+640402 Utilities,640402,Utilities,P&L,Rent
+640901 Repairs & Maintenance,640901,Repairs & Maintenance,P&L,Repairs & Maintenance
+610509 Allowances,610509,Allowances,P&L,HR Cost-G&A Benefits
+610505 Employee Health Insurance,610505,Benefits,P&L,HR Cost-G&A Benefits
+610601 NPPBONUS,610601,Bonus,P&L,HR Cost-G&A Bonus
+610101 Salaries Permanent,610101,Salaries & Wages,P&L,HR Cost-G&A Permanent Employees
+610305 EI-COMPANY,610305,EI-COMPANY,P&L,HR Cost-G&A Social Insurance
+710105 Cars,710105,Cars,P&L,Depreciation & Amortization
+710106 Electric Devices,710106,Electric Devices,P&L,Depreciation & Amortization
+710103 Furniture,710103,Furniture,P&L,Depreciation & Amortization
+710102 Laptops and PCs,710102,Laptops and PCs,P&L,Depreciation & Amortization
+710101 Office Lease,710101,Office Lease,P&L,Depreciation & Amortization
+710301 Interest Expenses,710301,Interest Expenses,P&L,Interest Expenses
+120102 Accounts Receivable (AR) - USD,120102,Accounts Receivable,B.S,Current Assets
+130709 Accrued Revenue IC,130709,Accrued Revenue IC,B.S,Current Assets
+150305 Electric Devices (deleted),150305,PP&E,B.S,Current Assets
+210102 Accounts Payable (AP) - USD,210102,Accounts Payable ,B.S,Current Assets
+310002 Paid Capital,310002,Share Capital,B.S,Owners Equity
+310301 Retained Earnings,310301,Retained Earnings,B.S,Current Assets
+130901 VAT Receivable,130901,Other debit balance,B.S,Current Assets
+130602 Loans to Shareholders,130602,Other debit balance,B.S,Current Assets
+110210 AirTm Virtual Wallet USD,110210,Cash&Cash Eq,B.S,Current Assets
+110214 BMO CAD,110214,Cash&Cash Eq,B.S,Current Assets
+110215 BMO USD,110215,Cash&Cash Eq,B.S,Current Assets
+110202 Chequing 0260 - USD - RBC,110202,Cash&Cash Eq,B.S,Current Assets
+110203 Chequing 1117 - USD - TD,110203,Cash&Cash Eq,B.S,Current Assets
+110204 Chequing 4152 - CAD - TD,110204,Cash&Cash Eq,B.S,Current Assets
+110216 I-Payout,110216,Cash&Cash Eq,B.S,Current Assets
+110211 Payoneer Virtual Wallet USD,110211,Cash&Cash Eq,B.S,Current Assets
+110212 PayPal,110212,Cash&Cash Eq,B.S,Current Assets
+110208 Virtual Wallet (CAD),110208,Cash&Cash Eq,B.S,Current Assets
+110209 Virtual Wallet (USD),110209,Cash&Cash Eq,B.S,Current Assets
+110206 WayPay Clearing Account (CAD),110206,Cash&Cash Eq,B.S,Current Assets
+110207 WayPay Clearing Account (USD),110207,Cash&Cash Eq,B.S,Current Assets
+110213 Wise CAD Account,110213,Cash&Cash Eq,B.S,Current Assets
+110205 Wise USD Account 8311097554,110205,Cash&Cash Eq,B.S,Current Assets
+120102 Accounts Receivable - USD,120102,Accounts Receivable,B.S,Current Assets
+130702 Accrued Revenue- USD,130702,Accrued Revenue IC,B.S,Current Assets
+130404 Prepaid Expenses (GURU),130404,Other debit balance,B.S,Current Assets
+130403 Prepaid Expenses UPWORK,130403,Other debit balance,B.S,Current Assets
+131107 Undeposited Funds,131107,Other debit balance,B.S,Current Assets
+210101 Accounts Payable (AP) - CAD,210101,Accounts Payable ,B.S,Current Assets
+210105 Accounts Payable (AP) - EUR,210105,Accounts Payable ,B.S,Current Assets
+210104 Accounts Payable (AP) - GBP,210104,Accounts Payable ,B.S,Current Assets
+230302 Monthly COGS Accrual,230302,Other Credit Balance,B.S,Current Assets
+120201 Allowance for bad debts,120201,Accounts Receivable,B.S,Current Assets
+131307 ClickWorker GMBH,131307,Due to IC,B.S,Current Assets
+131308 Clickworker USA,131308,Due to IC,B.S,Current Assets
+131304 LXT AUS,131304,Due to IC,B.S,Current Assets
+131301 LXT EGY,131301,Due to IC,B.S,Current Assets
+131303 LXT Enterprise UK,131303,Due to IC,B.S,Current Assets
+131305 LXT India,131305,Due to IC,B.S,Current Assets
+131306 LXT Romania,131306,Due to IC,B.S,Current Assets
+131302 LXT USA,131302,Due to IC,B.S,Current Assets
+130209 Inventory,130209,Invnetory,B.S,Current Assets
+150402 Accumulated Depreciation-Computers & IT Equipment,150402,Accumulated Depreciation,B.S,Non Current Assets
+220204 RBC Visa 2967 CAD,220204,Bank Over Drafts& Credit Cards,B.S,Current Liabilites
+220202 TD Visa 4524,220202,Bank Over Drafts& Credit Cards,B.S,Current Liabilites
+220101 RBC Visa 90889893,220101,Bank Over Drafts& Credit Cards,B.S,Current Liabilites
+140102 Security Deposits,140102,Security Deposits,B.S,Non Current Assets
+140201 Investments,140201,Investments,B.S,Non Current Assets
+230202 Dividends Liability,230202,Other Credit Balance,B.S,Current Liabilites
+230301 General Accrued COGS Liabilities,230301,Other Credit Balance,B.S,Current Liabilites
+230501 Accrued Rent,230501,Other Credit Balance,B.S,Current Liabilites
+230701 Accrued Expenses - GCP,230701,Other Credit Balance,B.S,Current Liabilites
+230102 Accrued Vacation,230102,Other Credit Balance,B.S,Current Liabilites
+230108 CNESST,230108,Other Credit Balance,B.S,Current Liabilites
+230103 EHT,230103,Other Credit Balance,B.S,Current Liabilites
+230104 HSF,230104,Other Credit Balance,B.S,Current Liabilites
+230101 Payroll Liabilities,230101,Other Credit Balance,B.S,Current Liabilites
+230111 Payroll liabilities-cash payment,230111,Other Credit Balance,B.S,Current Liabilites
+230106 QPIP Employer,230106,Other Credit Balance,B.S,Current Liabilites
+230107 QPP Employer,230107,Other Credit Balance,B.S,Current Liabilites
+230105 RRSP Employer Cont.,230105,Other Credit Balance,B.S,Current Liabilites
+230404 CPP Company,230404,Other Credit Balance,B.S,Current Liabilites
+230403 CPP Employee,230403,Other Credit Balance,B.S,Current Liabilites
+230405 EI Company,230405,Other Credit Balance,B.S,Current Liabilites
+230407 EI Employee,230407,Other Credit Balance,B.S,Current Liabilites
+230408 Federal,230408,Other Credit Balance,B.S,Current Liabilites
+230409 Provincial,230409,Other Credit Balance,B.S,Current Liabilites
+230410 QPIP Employee,230410,Other Credit Balance,B.S,Current Liabilites
+230411 QPP Employee,230411,Other Credit Balance,B.S,Current Liabilites
+230412 WSIB Payable,230412,Other Credit Balance,B.S,Current Liabilites
+230406 Deductions at Source,230406,Other Credit Balance,B.S,Current Liabilites
+240204 Withholding Tax 15%,240204,Other Credit Balance,B.S,Current Liabilites
+240202 QRM Liability account,240202,Other Credit Balance,B.S,Current Liabilites
+240101 HST Purchases,240101,Other Credit Balance,B.S,Current Liabilites
+240107 QST Payable,240107,Other Credit Balance,B.S,Current Liabilites
+240106 Receiver General Suspense,240106,Other Credit Balance,B.S,Current Liabilites
+530102 Other Cost of Goods - Equipment Cost,530102,Other Cost of Goods - Equipment Cost,P&L,Other Cost Cost of Service 
+530103 Other Direct Cost - Others,530103,Other Direct Cost - Others,P&L,Other Cost Cost of Service 
+520101 Cost of Services - Audio,520101,Cost of Services - Audio,P&L,Direct Cost (Crowdsourcing)
+520103 Cost of Services - Image,520103,Cost of Services - Image,P&L,Direct Cost (Crowdsourcing)
+520102 Cost of Services - Text,520102,Cost of Services - Text,P&L,Direct Cost (Crowdsourcing)
+520104 Cost of Services - Video,520104,Cost of Services - Video,P&L,Direct Cost (Crowdsourcing)
+510701 health Insurance,510701,health Insurance,P&L,HR Cost-COPS Benefits
+510601 Bonusincentive,510601,Bonus,P&L,HR Cost-COPS Bonus
+510801 Hiring Ads,510801,Recruitment,P&L,HR Cost-COPS Recruitment
+510502 Vacation,510502,Vacation,P&L,HR Cost-COPS Salaries & Wages OH
+510408 CNESST,510408,CNESST,P&L,HR Cost-COPS  Social insurance
+510406 CPP company,510406,CPP company,P&L,HR Cost-COPS  Social insurance
+510401 EMPLOYEE HEALTH TAX  EHT,510401,EMPLOYEE HEALTH TAX  EHT,P&L,HR Cost-COPS  Social insurance
+510403 QPIP company,510403,QPIP company,P&L,HR Cost-COPS  Social insurance
+510404 QPP company,510404,QPP company,P&L,HR Cost-COPS  Social insurance
+510402 Quebec hsf (health) expense,510402,Quebec hsf (health) expense,P&L,HR Cost-COPS  Social insurance
+510407 WSIB pay,510407,WSIB pay,P&L,HR Cost-COPS  Social insurance
+410101 Audio,410101,Audio,P&L,Revenue
+410103 Image,410103,Image,P&L,Revenue
+410102 Text,410102,Text,P&L,Revenue
+410104 Video,410104,Audio,P&L,Revenue
+620101 Advertising,620101,Advertising,P&L,Commercial
+620306 Conferences & Events,620306,Sponsorships & Events,P&L,Commercial
+620403 Market Research,620403,Market Research,P&L,Commercial
+640102 Air Travel,640102,Air Travel,P&L,Business Travel & related Cost
+641602 Background check,641602,Background check,P&L,Fees and Subscription
+641601 Dues & Subscriptions,641601,Dues & Subscriptions,P&L,Fees and Subscription
+641603 Finance Processing fees,641603,Finance Processing fees,P&L,Fees and Subscription
+641101 Insurance Expense,641101,Insurance Expense,P&L,Insurance
+641304 Intercompany Charges - AUS,641304,Intercompany Charges - AUS,P&L,Intercompany Charges
+641305 Intercompany Charges - EGY,641305,Intercompany Charges - EGY,P&L,Intercompany Charges
+641306 Intercompany Charges - IND,641306,Intercompany Charges - IND,P&L,Intercompany Charges
+641307 Intercompany Charges - ROM,641307,Intercompany Charges - ROM,P&L,Intercompany Charges
+641303 Intercompany Charges - UK,641303,Intercompany Charges - UK,P&L,Intercompany Charges
+641302 Intercompany Charges - US,641302,Intercompany Charges - US,P&L,Intercompany Charges
+640702 Shipping,640702,Shipping,P&L,Office Supplies
+641705 Consulting Firm,641705,Consulting Firm,P&L,Professional and Consultancy Fees
+641704 Payroll Processing Fees,641704,Payroll Processing Fees,P&L,Professional and Consultancy Fees
+640401 Rent Expense,640401,Rental,P&L,Rent
+610506 Employee LTD deduction,610506,Employee LTD deduction,P&L,HR Cost-G&A Benefits
+610507 Employer RRSP Benefit,610507,Employer RRSP Benefit,P&L,HR Cost-G&A Benefits
+610502 Vacation Pay,610502,Vacation,P&L,HR Cost-G&A Benefits
+610308 CNESST,610308,CNESST,P&L,HR Cost-G&A Social Insurance
+610306 CPP COMPANY,610306,CPP COMPANY,P&L,HR Cost-G&A Social Insurance
+610301 EMPLOYEE HEALTH TAX -EHT,610301,EMPLOYEE HEALTH TAX -EHT,P&L,HR Cost-G&A Social Insurance
+610303 QPIP - COMPANY,610303,QPIP - COMPANY,P&L,HR Cost-G&A Social Insurance
+610304 QPP - COMPANY,610304,QPP - COMPANY,P&L,HR Cost-G&A Social Insurance
+610302 Quebec hsf (health) expense,610302,Quebec hsf (health) expense,P&L,HR Cost-G&A Social Insurance
+610901 Training,610901,Training,P&L,HR Cost-G&A Staff Training
+630103 Digital Online (Commercial),630103,Digital Online (Commercial),P&L,Technology
+630101 Online Platforms,630101,"Fee, License and Subscription",P&L,Technology
+630102 Website Hosting,630102,Website Hosting -  Tech,P&L,Technology
+120101 Accounts Receivable - CAD,120101,Accounts Receivable,B.S,Current Assets
+130503 Loans Receivable -CAD,130503,Other debit balance,B.S,Current Assets
+150101 Furniture and Fixture,150101,PP&E,B.S,Non Current Assets
+150102 Accumulated Depreciation-Furniture and Fixture,150102,Accumulated Depreciation,B.S,Non Current Assets
+150202 Accumulated Depreciation- Building Improvement,150202,Accumulated Depreciation,B.S,Non Current Assets
+150301 Office Equipment,150301,PP&E,B.S,Non Current Assets
+150302 Accumulated Depreciation-Office Equipment,150302,Accumulated Depreciation,B.S,Non Current Assets
+310101 Common Shares,310101,Share Capital,B.S,Owners Equity
+310105 Restricted shares,310105,Share Capital,B.S,Owners Equity
+310106 Class 2 common shares,310106,Share Capital,B.S,Owners Equity
+310107 Class 3 common shares,310107,Share Capital,B.S,Owners Equity
+310108 Class A common shares,310108,Share Capital,B.S,Owners Equity
+310202 Dividends Paid,310202,Dividends Paid,B.S,Owners Equity
+150102 Accumulated DepreciationFurniture and Fixture,150102,Accumulated Depreciation,B.S,Non Current Assets
+150202 Accumulated Depreciation Building Improvement,150202,Accumulated Depreciation,B.S,Non Current Assets
+150302 Accumulated DepreciationOffice Equipment,150302,Accumulated Depreciation,B.S,Non Current Assets
+110212 Wise 1361,110212,Cash&Cash Eq,B.S,Current Assets
+210103 Accounts Payable (A/P) - AUD,210103,Accounts Payable ,B.S,Current Liabilites
+230112 PAYG Liability,230112,Other Credit Balance,B.S,Current Liabilites
+230101 Payroll clearing,230101,Other Credit Balance,B.S,Current Liabilites
+260101 LXT Current Account,260101,Due to IC,B.S,Current Liabilites
+240201 Income tax payable,240201,Other Credit Balance,B.S,Current Liabilites
+240103 GST Liabilities Payable,240103,Other Credit Balance,B.S,Current Liabilites
+620507 Digital Online (Commercial),620507,Digital Online (Commercial),P&L,Commercial
+310101 Ordinary shares,310101,Share Capital,B.S,Owners Equity
+110213 KOTAK Current Account,110213,Cash&Cash Eq,B.S,Current Assets
+130702 Accrued Revenue,130702,Other debit balance,B.S,Current Assets
+210108 Accounts Payable (A/P) - INR,210108,Accounts Payable ,B.S,Current Liabilites
+130904 GST 12%,130904,Other debit balance,B.S,Current Assets
+130901 GST 18%,130901,Other debit balance,B.S,Current Assets
+130902 GST 5%,130902,Other debit balance,B.S,Current Assets
+130906 Input Tax CGST (RCM),130906,Other debit balance,B.S,Current Assets
+130907 Input Tax SGST (RCM),130907,Other debit balance,B.S,Current Assets
+130905 GST 28%,130905,Other debit balance,B.S,Current Assets
+130106 Employee Cash Advances,130106,Other debit balance,B.S,Current Assets
+150702 Accumulated depreciation_Electric tools & Equipments,150702,Accumulated Depreciation,B.S,Non Current Assets
+150701 Electric tools & Equipments,150701,PP&E,B.S,Non Current Assets
+150602 Accumulated depreciation-Software,150602,Accumulated Depreciation,B.S,Non Current Assets
+150601 Software,150601,PP&E,B.S,Non Current Assets
+230201 Accrued Expense,230201,Other Credit Balance,B.S,Current Liabilites
+230101 Payroll Accrual,230101,Other Credit Balance,B.S,Current Liabilites
+230112 Payroll Tax Accrual,230112,Other Credit Balance,B.S,Current Liabilites
+230113 PF Accrual,230113,Other Credit Balance,B.S,Current Liabilites
+230102 Payroll liabilities,230102,Other Credit Balance,B.S,Current Liabilites
+230407 ESI,230407,Other Credit Balance,B.S,Current Liabilites
+260101 LXT CA INC.,260101,Due to IC,B.S,Current Liabilites
+260102 LXT USA INC.,260102,Bank Over Drafts& Credit Cards,B.S,Current Liabilites
+240202 Withholding Tax (TDS),240202,Other Credit Balance,B.S,Current Liabilites
+240203 Deferred Tax Liability,240203,Other Credit Balance,B.S,Current Liabilites
+240107 Output Tax CGST (RCM),240107,Other Credit Balance,B.S,Current Liabilites
+240108 Output Tax SGST (RCM),240108,Other Credit Balance,B.S,Current Liabilites
+510601 Bonus/incentive,510601,Bonus,P&L,HR Cost-COPS Bonus
+510105 Overtime,510105,Salaries & Wages,P&L,HR Cost-COPS  Salaries & Wagaies
+641701 Accounting Fees,641701,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+610601 NPP/BONUS,610601,Bonus,P&L,HR Cost-G&A Bonus
+710110 Office Equipments,710110,Office Equipments,P&L,Depreciation
+710109 Software,710109,Software,P&L,Depreciation & Amortization
+120219 Clearing account,120219,Other debit balance,B.S,Current Assets
+310100 Share capital,310100,Share Capital,B.S,Owners Equity
+110217 RAIFFEISEN BANK - EUR,110217,Cash&Cash Eq,B.S,Current Assets
+110215 RAIFFEISEN BANK - RON,110215,Cash&Cash Eq,B.S,Current Assets
+110216 RAIFFEISEN BANK - USD,110216,Cash&Cash Eq,B.S,Current Assets
+110205 WISE RON,110205,Cash&Cash Eq,B.S,Current Assets
+210109 Accounts Payable (A/P) - RON,210109,Accounts Payable ,B.S,Current Liabilites
+130905 VAT 11%,130905,Other debit balance,B.S,Current Assets
+130901 VAT 19%,130901,Other debit balance,B.S,Current Assets
+130904 Vat 21%,130904,Other debit balance,B.S,Current Assets
+130903 VAT 9%,130903,Other debit balance,B.S,Current Assets
+510802 Recruitment Agencies,510802,Recruitment,P&L,HR Cost-COPS Recruitment
+110211 Wise 1445,110211,Cash&Cash Eq,B.S,Current Assets
+230413 National Insurance Liability,230413,Other Credit Balance,B.S,Current Liabilites
+230112 PAYE Liability,230112,Other Credit Balance,B.S,Current Liabilites
+240107 VAT Control,240107,Other Credit Balance,B.S,Current Liabilites
+110205 LXT USA INC. (5735) - 1,110205,Cash&Cash Eq,B.S,Current Assets
+210102 Accounts Payable (A/P) - USD,210102,Accounts Payable ,B.S,Current Liabilites
+130201 Inventory,130201,Invnetory,B.S,Current Assets
+220103 Ramp Marketing CC,220103,Bank Over Drafts& Credit Cards,B.S,Current Liabilites
+510703 Pension,510703,Pension,P&L,HR Cost-COPS Benefits
+640103 Accommodations,640103,Accommodations,P&L,Business Travel & related Cost
+610501 Benefits,610501,Benefits,P&L,HR Cost-G&A Benefits
+610508 Tax benefits,610508,Tax benefits,P&L,HR Cost-G&A Benefits
+610201 Salaries Temporary,610201,Temporary Employees,P&L,HR Cost-G&A Temporary Employees
+110206 TD 7997,110206,Cash&Cash Eq,B.S,Current Assets
+131401 Deferred income taxes,131401,Other debit balance,B.S,Current Assets
+131305 IC India Receivable,131305,Due to IC,B.S,Cuurent Assets
+310101 Common stock,310101,Share Capital,B.S,Owners Equity
+120102 Accounts Receivable (A/R) - USD,120102,Accounts Receivable,B.S,Current Liabilites
+210101 Accounts Payable (A/P) - CAD,210101,Accounts Payable ,B.S,Current Liabilites
+210105 Accounts Payable (A/P) - EUR,210105,Accounts Payable ,B.S,Current Liabilites
+210104 Accounts Payable (A/P) - GBP,210104,Accounts Payable ,B.S,Current Liabilites
+210107 Accounts Payable (A/P) - INR,210107,Accounts Payable ,B.S,Current Liabilites
+220200 Bank Over Drafts& Credit Cards - CAD,220200,Other Credit Balance,B.S,Current Liabilites
+220201 TD Visa 3314,220201,Other Credit Balance,B.S,Current Liabilites
+220203 TD Visa 4819 - AG,220203,Other Credit Balance,B.S,Current Liabilites
+220100 Bank Over Drafts& Credit Cards - USD,220100,Other Credit Balance,B.S,Current Liabilites
+220101 RBC Visa 9088/9893,220101,Other Credit Balance,B.S,Current Liabilites
+220102 9229 - OO (deleted),220102,Other Credit Balance,B.S,Current Liabilites
+140101 Long-Term Loan- CAD,140101,Other Long Term Assets,B.S,Non Current Assets
+230202 Other accrued expenses (deleted),230202,,,
+230110 Manual Transferred Salaries,230110,Other Credit Balance,B.S,Current Liabilites
+240102 HST Receivables ON,240102,Other Credit Balance,B.S,Current Liabilites
+540101 COPS Month end provision,540101,COPS Month end provision,P&L,COPS Provision
+640104 Travel Expense,640104,Travel Expense,P&L,Business Travel & related Cost
+610309 CPP & EI (2022) Employee Portion,610309,CPP & EI (2022) Employee Portion,P&L,HR Cost-G&A Social Insurance
+710601 Corporate Tax,710601,Corporate Tax,P&L,Taxes
+710603 Taxes paid,710603,Corporate Tax,P&L,Taxes
+210107 Creditors,210107,Other Credit Balance,B.S,Current Liabilites
+610803 Recruitment Agencies,610803,Recruitment,P&L,HR Cost-G&A Recruitment
+710104 Finishing & Fixture,710104,Finishing & Fixture,P&L,Depreciation & Amortization
+110205 Wise 2360,110205,Cash&Cash Eq,B.S,Current Assets
+230111 Superannuation payable,230111,Other Credit Balance,B.S,Current Liabilites
+610507 Superannuation Expense,610507,Employer RRSP Benefit,P&L,HR Cost-G&A Benefits
+130903 GST 0%,130903,Other debit balance,B.S,Current Assets
+510410 Employee Gratuity,510410,Employee Gratuity,P&L,HR Cost-COPS  Social insurance
+641706 Audit Fees,641706,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+610104 Directors Remuneration,610104,Directors Remuneration,P&L,HR Cost-G&A Benefits
+710602 Deferred Tax Exp,710602,Deferred Tax Exp,P&L,Taxes
+110217 BMO USA USD,110217,Cash&Cash Eq,B.S,Current Assets
+110220 HDFC BANK Clearing Account,110220,Cash&Cash Eq,B.S,Current Assets
+Wise bank charges,,Bank Charges,P&L,Bank Charges and Fees
+110211 10600-Payoneer,110211,Cash&Cash Eq,B.S,Current Assets
+110216 10625-i-Payout,110216,Cash&Cash Eq,B.S,Current Assets
+110202 10700-BOA-0428 Operating,110202,Cash&Cash Eq,B.S,Current Assets
+110206 10725-BOA-3547 Interest Bearing,110206,Cash&Cash Eq,B.S,Current Assets
+110204 10750-BOA-5545 ACH Payment,110204,Cash&Cash Eq,B.S,Current Assets
+120102 11000-Accounts Receivable,120102,Accounts Receivable,B.S,Current Assets
+131107 12000-Undeposited Funds,131107,Other debit balance,B.S,Current Assets
+130402 12200-Prepaid Expenses,130402,Other debit balance,B.S,Current Assets
+130405 12300-Prepaid Insurance,130405,Other debit balance,B.S,Current Assets
+210102 20101-Accounts Payable,210102,Other debit balance,B.S,Current Assets
+220101 20200-Chase Credit Card,220101,Other Credit Balance,B.S,Current Liabilites
+220102 21000-Clickworker Payments,220102,Other Credit Balance,B.S,Current Liabilites
+250104 23000-Unearned Income,250104,Other Credit Balance,B.S,Current Liabilites
+260103 24200-Intercompany - US - DEU,260103,Other Credit Balance,B.S,Current Liabilites
+240201 25800-Accrued Corporation Tax,240201,Other Credit Balance,B.S,Current Liabilites
+230301 25900-Accrued Clickworker Costs,230301,Other Credit Balance,B.S,Current Liabilites
+230201 26000-Accrued Expenses,230201,Other Credit Balance,B.S,Current Liabilites
+260104 Intercompany - LXT CA,260104,Other Credit Balance,B.S,Current Liabilites
+410101 42700-Microsoft Income,410101,Audio,P&L,Revenue
+410102 42725-Enterprise Income,410102,Text,P&L,Revenue
+410103 42750-Marketplace Income,410103,Image,P&L,Revenue
+420101 42775-Intercomp Income - LXT,420101,Intercompany Charges,P&L,Revenue
+410302 48300-Sales Discounts,410302, Discounts/Refunds Given,P&L,Revenue
+520103 53400-Subcont Service-Outside,520103,Cost of Services - Image,P&L,Direct Cost (Crowdsourcing)
+520104 53500-Subcont Service-Clkwrkr,520104,Cost of Services - Video,P&L,Direct Cost (Crowdsourcing)
+520101 53600-Intercomp Clkwkr Service,520101,COPS Intercompany Charges,P&L,Direct Cost (Crowdsourcing)
+540101 53700-Monthly accrual adjust,540101,COPS Month end provision,P&L,Other Cost Cost of Service 
+520102 61500-Payment Provider Fee,520102,Cost of Services - Text,P&L,Direct Cost (Crowdsourcing)
+641403 60400-Bank Service Charges,641403,Bank Charges,P&L,Bank Charges and Fees
+641402 60500-Credit Card Fees,641402,Bank Charges,P&L,Bank Charges and Fees
+630102 60600-Web Services,630102,Website Hosting -  Tech,P&L,Technology
+630103 60800-Computer Software,630103,Digital Online (Commercial),P&L,Depreciation
+641310 61050-Intercompany Licence Fees,641310,Intercompany Charges- CW,P&L,Intercompany Charges
+641301 62100-GmbH Project Mgmt Support,641301,Intercompany Charges,P&L,Intercompany Charges
+641311 62200-GmbH Community Mgmt Sup,641311,Intercompany Charges,P&L,Intercompany Charges
+641309 62300-GmbH Sales Sup/Acct Mgmt,641309,Intercompany Charges,P&L,Intercompany Charges
+630101 62500-Licenses & Subscriptions,630101,"Fee, License and Subscription",P&L,Technology
+641100 63300-Insurance Expense,641100,Insurance Expense,P&L,Insurance
+640701 64900-Office Expense,640701,Office Supplies,P&L,Office Supplies
+641704 66001-Payroll Processing Exp,641704,Payroll Processing Fees,P&L,Professional and Consultancy Fees
+710605 68080-WA B&O Tax,710605,Corporate Tax,P&L,Taxes
+640601 68100-Telephone Expense,640601,Telephone Expense,P&L,Communication Expenses
+610102 69100-Administrative-PartTime Employee,610102,Local Contractors  (Sub-Contractors ),P&L,HR Cost-G&A Permanent Employees
+610101 69200-Sales & Marketing - Full Time,610101,Salaries & Wages,P&L,HR Cost-G&A Permanent Employees
+610508 69900-PR - Employer Taxes,610508,Tax benefits,P&L,HR Cost-G&A Benefits
+720101 70200-Interest Income,720101,#REF!,P&L,Other Income
+641501 66710-Legal and Professional,641501,Legal,P&L,Legal Fees
+641703 66725-Consulting,641703,Consulting Fees,P&L,HR Cost-G&A Permanent Employees
+110201 10400-Petty Cash,110201,Cash&Cash Eq,B.S,Current Assets
+110207 10650-Navro-Paytrix,110207,110207 10650-Navro-Paytrix,B.S,Current Assets
+120201 11200-Allowance for Bad Debt,120201,120201 11200-Allowance for Bad Debt,B.S,Current Assets
+120203 11400-AR - Credit Balances,120203,120203 11400-AR - Credit Balances,B.S,Current Assets
+130601 24100-Shareholder Loan,130601,130601 24100-Shareholder Loan,B.S,Current Assets
+230602 24150-Accrued Interest,230602,230602 24150-Accrued Interest,B.S,Current Liabilites
+240202 25700-Accrued CA Tax,240202,240202 25700-Accrued CA Tax,B.S,Current Liabilites
+250102 11300-AR Adjust - Accrued Rev,250102,250102 11300-AR Adjust - Accrued Rev,B.S,Current Liabilites
+310101 30100-Capital Stock,310101,310101 30100-Capital Stock,B.S,Owners Equity
+310301 32000-Retained Earnings,310301,310301 32000-Retained Earnings,B.S,Owners Equity
+410201 Equipment Sales,410201,Equipment Sales,P&L,Revenue
+710605 68080-WA B&O Tax,710605,Corporate Tax,P&L,Taxes
+520201 LXT Inter-company COPS,520201,LXT Inter-company COPS,P&L,Inter-company COPS
+520201 LXT Inter-company COPS,520201,LXT Inter-company COPS,P&L,Inter-company COPS
+520201 LXT Inter-company COPS,520201,LXT Inter-company COPS,P&L,Inter-company COPS
+641701 66700-Professional Fees,641701,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+641701 66700-Professional Fees,641701,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+710604 68070-NYS Franchise Tax,710604,NYS Franchise Tax,P&L,Taxes
+610305 Employer National Insurance Expense,610305,EI-COMPANY,P&L,HR Cost-G&A Social Insurance
+130908 GST Input Tax IGST (RCM),130908,Other Credit Balance,B.S,Current Liabilites
+230409 LWF,230409,Other Credit Balance,B.S,Current Liabilites
+240109 GST Output Tax IGST (RCM),240109,Other Credit Balance,B.S,Current Liabilites
+510409 Labour Welfare Fund,510409,Labour Welfare Fund,P&L,HR Cost-COPS  Social insurance
+230110 Accrued Payroll (deleted),230110,Other Credit Balance,B.S,Current Liabilites
+240205 25850-Accrued NC franchise tax,240205,Other Credit Balance,B.S,Current Liabilites
+510802 65500-Admin Support - Community,510802,Recruitment,P&L,HR Cost-COPS Recruitment
+620101 60000-Marketing,620101,Advertising,P&L,Commercial
+620306 60020-Confs & Trade Shows,620306,Sponsorships & Events,P&L,Commercial
+640602 61700-Computer &  Internet Exp,640602,Computer & Internet Expenses,P&L,Communication Expenses
+610509 63360-Worker's Compensation,610509,Allowances,P&L,HR Cost-G&A Benefits
+710301 63400-Interest Expense,710301,Interest Expenses,P&L,Interest Expenses
+640801 64300-Meals and Entertainment,640801,Meals & Entertainment,P&L,Cafeteria Cost
+641203 64700-Miscellaneous Expense,641203,Miscellaneous Expense,P&L,Office Expenses
+640702 66500-Postage and Delivery,640702,Shipping,P&L,Office Supplies
+710602 68050-Delaware Corporation Tax,710602,Deferred Tax Exp,P&L,Taxes
+640101 68400-Travel Expense,640101,Ground Travel,P&L,Business Travel & related Cost
+710303 68700-Penalties Expense,710303,Penalty Expense,P&L,Interest Expenses
+610307 WSIB Pay,610307,WSIB Pay,P&L,HR Cost-G&A Social Insurance
+641901 Bad debt Provisions,641901,Bad Debt Exp,P&L,Bad Debt Provisions
+250100 Deferred/Un-earned Revenue,250100,Deferred/Un-earned Revenue,B.S,Deferred/Un-earned Revenue
+710703 Stock Compensation,710703,Stock Compensation,P&L,Stock Compensation
+720102 Deferred Tax Benefit,720102,Deferred Tax Exp,P&L,Other Income
+641606 Takafull Contribution (Medical 0.0025),641606,Takafull Contribution (Medical 0.0025),P&L,Fees and Subscription
+110220 HDFC BANK  Account,110220,Cash&Cash Eq,B.S,Current Assets
+110208 Stripe-Payments,110208,Cash&Cash Eq,B.S,Current Assets
+110210 Airtm - Payment Service Provider,110210,Cash&Cash Eq,B.S,Current Assets
+120101 Accounts Receivable,120101,Accounts Receivable,B.S,Current Assets
+130601 Loans Receivable - Mohamed,130601,130601 24100-Shareholder Loan,B.S,Current Assets
+130705 Other current assets,130705,Other Current Assets,B.S,Current Assets
+130709 Suspensed - Assets,130709,Other Current Assets,B.S,Current Assets
+130901 Deductible input tax 7%,130901,Other debit balance,B.S,Current Assets
+130902 Deductible input tax 19%,130902,Other debit balance,B.S,Current Assets
+130903 Dedctbl inpt tax sec 13b UStG 19%,130903,Other debit balance,B.S,Current Assets
+130904 Input tax ded. following period/year,130904,Other debit balance,B.S,Current Assets
+130905 Reclaimed corporate income tax,130905,Other debit balance,B.S,Current Assets
+131309 Receivables affiliated companies,131309,Other debit balance,B.S,Current Assets
+150501 Other fixed assets,150501,PP&E,B.S,Non Current Assets
+150502 Accumulated Depreciation-Other fixed assets,150502,Accumulated Depreciation,B.S,Current Assets
+150603 Other intangible assets,150603,PP&E,B.S,Non Current Assets
+150604 Accumulated Depreciation - Other Intangible Assets,150604,Accumulated Depreciation,B.S,Current Assets
+210101 Accounts Payable (A/P),210101,Accounts Payable ,B.S,Current Liabilites
+"220201 MasterCard 7595, Rozsenich, Christian",220201,Other Credit Balance,B.S,Current Liabilites
+250101 Down Payments,250101,Other Credit Balance,B.S,Current Liabilites
+260101 Liabilities to affiliated companies,260101,Due to IC,B.S,Current Liabilites
+270301 Long-term Loans,270301,Due to IC,B.S,Non Current Liabilites
+270303 Suspended Liabilities,270303,Other Credit Balance,B.S,Current Liabilites
+610509 Post-employment benefit costs,610509,Allowances,P&L,HR Cost-G&A Benefits
+310001 Capital,310001,Capital,B.S,Owners Equity
+410101 Revenue 19% VAT,410101,Audio,P&L,Revenue
+410106 Other operating income,410106, Revenues,P&L,Revenue
+410302 Volume Discount,410302, Discounts/Refunds Given,P&L,Revenue
+420102 Suspended Revenue,420102, Revenues,P&L,Revenue
+520101 Intercompany Clickworker Payments,520101,COPS Intercompany Charges,P&L,Direct Cost (Crowdsourcing)
+520102 Agency costs,520102,Cost of Services - Text,P&L,Direct Cost (Crowdsourcing)
+520103 Purchased services,520103,Cost of Services - Image,P&L,Direct Cost (Crowdsourcing)
+520104 Clickworker incl VAT,520104,Cost of Services - Video,P&L,Direct Cost (Crowdsourcing)
+530101 Other services EU 19% input tax/VAT,530101,Other Direct Cost - COPS Consulting,P&L,Other Cost Cost of Service 
+530104 Serv.suppl foreign contr.19% i.t./VAT,530104,Other COPS,P&L,Other Cost Cost of Service 
+610202 Holiday,610202,Local Contractors  (Sub-Contractors ),P&L,HR Cost-G&A Temporary Employees
+610309 Contrb. to occup. health/safety agency,610309,CPP & EI (2022) Employee Portion,P&L,HR Cost-G&A Social Insurance
+610501 Vol. social benfts not subj to wage tx,610501,Benefits,P&L,HR Cost-G&A Benefits
+610802 clickworker recruitment,610802,Recruitment,P&L,HR Cost-G&A Recruitment
+610901 Training costs,610901,Training,P&L,HR Cost-G&A Staff Training
+620101 Advertising expenses,620101,Advertising,P&L,Commercial
+620306 Exhibition costs,620306,Sponsorships & Events,P&L,Commercial
+640101 Employee mileage reimbursement,640101,Ground Travel,P&L,Business Travel & related Cost
+"640102 Employee travel expnses, cost of travel",640102,Air Travel,P&L,Business Travel & related Cost
+"640103 Employee trav. expn, accommodation costs",640103,Accommodations,P&L,Business Travel & related Cost
+640104 Employee travel expenses,640104,Travel Expense,P&L,Business Travel & related Cost
+640401 Rent (immovable property),640401,Rental,P&L,Rent
+"640402 Gas, electricity, water",640402,Utilities,P&L,Rent
+640601 Telephone,640601,Telephone Expense,P&L,Communication Expenses
+640701 Hardware / software maintenance expenses,640701,Office Supplies,P&L,Office Supplies
+640702 Postage,640702,Shipping,P&L,Office Supplies
+640901 Cleaning,640901,Repairs & Maintenance,P&L,Repairs & Maintenance
+641101 Insurance premiums,641101,Insurance Expense,P&L,Insurance
+641205 Suspended G&A,641205,Other G&A,P&L,Office Expenses
+"641601 Expensions for licences, concessions",641601,Dues & Subscriptions,P&L,Fees and Subscription
+641603 Bookkeeping expenses,641603,Finance Processing fees,P&L,Fees and Subscription
+641701 Period-end closing and audit costs,641701,Accounting & Audit Fees,P&L,Professional and Consultancy Fees
+641705 Purchased services/ third-party services,641705,Consulting Firm,P&L,Professional and Consultancy Fees
+710101 Depreciation Expense,710101,Depreciation Expense,P&L,Depreciation & Amortization
+710201 Amortization,710201,Amortization,P&L,Depreciation & Amortization
+710501 SR&ED tax credits,710501,Taxes,P&L,Taxes
+710704 Immediate write-off of low-value assets,710704,Bad Debt,P&L,Bad Debt Exp
+510501 Holiday,510501,Holiday,P&L,HR Cost-COPS Salaries & Wages OH
+610201 Salaries Temporary Allow in Lieu of Benefit,610201,Temporary Employees,P&L,HR Cost-G&A Temporary Employees
