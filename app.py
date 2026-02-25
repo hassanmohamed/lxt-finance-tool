@@ -610,17 +610,6 @@ def main_app():
         if not fname.endswith(".xlsx"):
             fname += ".xlsx"
 
-        # Write to disk so the file is always accessible with the right name
-        reports_dir = Path(__file__).parent / "reports"
-        reports_dir.mkdir(exist_ok=True)
-        file_path = reports_dir / fname
-
-        try:
-            file_path.write_bytes(st.session_state["report_data"])
-            st.success(f"✅ Report saved to: `reports/{fname}`")
-        except Exception as e:
-            st.error(f"Failed to save file: {e}")
-
         # Download button with Content-Disposition via Streamlit
         st.download_button(
             label="📥 Download Excel Report",
@@ -754,12 +743,7 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     xlsx_bytes = to_excel_bytes(master_df)
     sd = datetime.strptime(start_date, "%Y-%m-%d")
     ed = datetime.strptime(end_date, "%Y-%m-%d")
-    if sd.month == ed.month and sd.year == ed.year:
-        period = sd.strftime("%b_%Y")
-    else:
-        period = f"{sd.strftime('%b%Y')}_to_{ed.strftime('%b%Y')}"
-    generated = datetime.now().strftime("%d%b%Y")
-    file_name = f"LXT_General_Ledger_{period}_generated_{generated}.xlsx"
+    file_name = f"LXT_General_Ledger_{sd.strftime('%d%b%Y')}_to_{ed.strftime('%d%b%Y')}.xlsx"
 
     # Store in session state so the download button persists
     st.session_state["report_data"] = xlsx_bytes
