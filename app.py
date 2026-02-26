@@ -104,12 +104,13 @@ QB_COLUMN_MAP = {
     "Date": "Transaction date",
     "Class": "Class full name",
     "Amount": "Balance",
-    "Debit": "Debit",
-    "Credit": "Credit",
-    "Foreign Debit": "Debit",
-    "Foreign Credit": "Credit",
-    "Nat Debit": "Debit",
-    "Nat Credit": "Credit",
+    \"Debit\": \"Debit\",
+    \"Credit\": \"Credit\",
+    # NOTE: "Foreign Debit"/"Foreign Credit" intentionally excluded —
+    #   they contain foreign currency values (e.g. USD for a CAD company).
+    #   We always want the native/home currency amounts.
+    \"Nat Debit\": \"Debit\",
+    \"Nat Credit\": \"Credit\",
 }
 
 QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name"
@@ -363,6 +364,11 @@ def transform(raw_rows: list[dict], company_label: str) -> pd.DataFrame:
         return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
     df = pd.DataFrame(raw_rows)
+
+    # Drop foreign-currency columns so they never overwrite native amounts
+    foreign_cols = [c for c in df.columns if c.startswith("Foreign")]
+    if foreign_cols:
+        df = df.drop(columns=foreign_cols)
 
     # Rename using map
     rename_map = {
