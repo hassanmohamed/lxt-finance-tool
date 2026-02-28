@@ -55,6 +55,7 @@ FOREX_CURRENCIES = ["EGP", "CAD", "AUD", "RON", "INR", "EUR", "GBP"]
 
 OUTPUT_COLUMNS = [
     "Distribution account",
+    "Account Number",
     "Transaction date",
     "Reporting Month",
     "Memo/Description",
@@ -67,7 +68,8 @@ OUTPUT_COLUMNS = [
     "Debit",
     "Credit",
     "Class full name",
-    "Item/Service",
+    "CostCenter",
+    "SubClass Name",
     "Company Country",
     "Mapping",
     "Item",
@@ -92,7 +94,7 @@ QB_COLUMN_MAP = {
     "debt_amt": "Debit",
     "credit_amt": "Credit",
     "klass_name": "Class full name",
-    "item_name": "Item/Service",
+
     # Display-name ColTitles returned by the API
     "Account": "Distribution account",
     "Distribution Account": "Distribution account",
@@ -105,7 +107,7 @@ QB_COLUMN_MAP = {
     "Memo/Description": "Memo/Description",
     "Date": "Transaction date",
     "Class": "Class full name",
-    "Product/Service": "Item/Service",
+
     "Amount": "Balance",
     "Debit": "Debit",
     "Credit": "Credit",
@@ -116,7 +118,7 @@ QB_COLUMN_MAP = {
     "Nat Credit": "Credit",
 }
 
-QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name,item_name"
+QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -395,6 +397,11 @@ def transform(raw_rows: list[dict], company_label: str) -> pd.DataFrame:
     df["Company Country"] = company_label
     df["Currency"] = COMPANY_CURRENCY.get(company_label, "")
 
+    # Split "Class full name" on ":" into CostCenter and SubClass Name
+    class_split = df["Class full name"].astype(str).str.split(":", n=1, expand=True)
+    df["CostCenter"] = class_split[0].str.strip() if 0 in class_split.columns else ""
+    df["SubClass Name"] = class_split[1].str.strip() if 1 in class_split.columns else ""
+
     # Reporting Month: month'year (e.g. "2'2026") derived from Transaction date
     td = pd.to_datetime(df["Transaction date"], format="mixed", errors="coerce")
     df["Reporting Month"] = td.dt.month.astype("Int64").astype(str) + "'" + td.dt.year.astype("Int64").astype(str)
@@ -478,6 +485,13 @@ def apply_mapping(df: pd.DataFrame) -> pd.DataFrame:
         suffixes=("", "_map"),
     )
 
+    # Keep Account Number from the mapping (the code used for lookup)
+    if "Account Number_map" in df.columns:
+        df["Account Number"] = df["Account Number_map"]
+        df = df.drop(columns=["Account Number_map"])
+    elif "Account Number" not in df.columns:
+        df["Account Number"] = df["_account_code"]
+
     # If Mapping/Item/Statement columns already existed (as empty placeholders),
     # overwrite them with the merged values
     for col in ("Mapping", "Item", "Statement"):
@@ -486,7 +500,7 @@ def apply_mapping(df: pd.DataFrame) -> pd.DataFrame:
             df = df.drop(columns=[f"{col}_map"])
 
     # Clean up helper columns
-    df = df.drop(columns=["_account_code", "Account Number"], errors="ignore")
+    df = df.drop(columns=["_account_code"], errors="ignore")
 
     return df
 
@@ -498,6 +512,224 @@ def to_excel_bytes(df: pd.DataFrame) -> bytes:
     """Write DataFrame to an in-memory Excel file and return bytes."""
     buf = io.BytesIO()
     df.to_excel(buf, index=False, engine="openpyxl")
+    return buf.getvalue()
+
+
+# ═══════════════════════════════════════════════════════════════
+# Pivot P&L Report
+# ═══════════════════════════════════════════════════════════════
+def _month_key(year: int, month: int) -> str:
+    """Return the Reporting Month key matching the format in the data, e.g. '1\'2026'."""
+    return f"{month}'{year}"
+
+
+def _prev_months(year: int, month: int, count: int) -> list[tuple[int, int]]:
+    """Return a list of (year, month) tuples going back `count` months inclusive."""
+    result = []
+    for _ in range(count):
+        result.append((year, month))
+        month -= 1
+        if month == 0:
+            month = 12
+            year -= 1
+    return result
+
+
+def build_pivot_section(
+    df: pd.DataFrame,
+    month_keys: list[str],
+    month_labels: list[str],
+    section_label: str,
+) -> list[dict]:
+    """
+    Build one pivot section (Consolidated / per-entity / per-CostCenter).
+
+    Returns a list of row dicts with keys:
+      'Description', month_labels[0], month_labels[1], month_labels[2], 'Variance', '_style'
+    '_style' is 'section' | 'group' | 'detail' | 'total' for formatting.
+    """
+    import calendar
+
+    rows: list[dict] = []
+
+    # Section header row
+    header = {"Description": section_label, "_style": "section"}
+    for lbl in month_labels:
+        header[lbl] = ""
+    header["Variance"] = ""
+    rows.append(header)
+
+    # Get unique Statements preserving order
+    statements = df["Statement"].dropna().unique()
+
+    for stmt in statements:
+        stmt_str = str(stmt).strip()
+        if not stmt_str or stmt_str.lower() == "nan":
+            continue
+
+        stmt_df = df[df["Statement"] == stmt]
+
+        # Group header
+        group_row = {"Description": stmt_str, "_style": "group"}
+        for lbl in month_labels:
+            group_row[lbl] = ""
+        group_row["Variance"] = ""
+        rows.append(group_row)
+
+        # Mapping detail lines
+        mappings = stmt_df["Mapping"].dropna().unique()
+        stmt_totals = {lbl: 0.0 for lbl in month_labels}
+
+        for mapping in mappings:
+            mapping_str = str(mapping).strip()
+            if not mapping_str or mapping_str.lower() == "nan":
+                continue
+
+            detail = {"Description": f"  {mapping_str}", "_style": "detail"}
+
+            for i, mk in enumerate(month_keys):
+                lbl = month_labels[i]
+                mask = (
+                    (stmt_df["Mapping"] == mapping)
+                    & (stmt_df["Reporting Month"] == mk)
+                )
+                val = stmt_df.loc[mask, "Amount in USD (Reporting Currency)"].sum()
+                detail[lbl] = round(val, 2)
+                stmt_totals[lbl] += val
+
+            # Variance = latest month - previous month
+            detail["Variance"] = round(
+                detail[month_labels[0]] - detail[month_labels[1]], 2
+            )
+            rows.append(detail)
+
+        # Statement total row
+        total_row = {"Description": f"Total {stmt_str}", "_style": "total"}
+        for lbl in month_labels:
+            total_row[lbl] = round(stmt_totals[lbl], 2)
+        total_row["Variance"] = round(
+            stmt_totals[month_labels[0]] - stmt_totals[month_labels[1]], 2
+        )
+        rows.append(total_row)
+
+    # Add an empty spacer row after each section
+    spacer = {"Description": "", "_style": "detail"}
+    for lbl in month_labels:
+        spacer[lbl] = ""
+    spacer["Variance"] = ""
+    rows.append(spacer)
+
+    return rows
+
+
+def build_pivot_report(
+    master_df: pd.DataFrame,
+    selected_year: int,
+    selected_month: int,
+) -> tuple[pd.DataFrame, list[dict]]:
+    """
+    Build the full pivot P&L report from the master GL data.
+
+    Returns (display_df, raw_rows) where raw_rows contains '_style' metadata.
+    """
+    import calendar
+
+    # Determine 3 consecutive months (latest first)
+    months = _prev_months(selected_year, selected_month, 3)
+    month_keys = [_month_key(y, m) for y, m in months]
+    month_labels = [calendar.month_abbr[m] + f" {y}" for y, m in months]
+
+    # Filter to P&L items only (the pivot is an income statement)
+    pl_df = master_df.copy()
+
+    all_rows: list[dict] = []
+
+    # ── Section 1: Consolidated (all countries) ──
+    all_rows.extend(
+        build_pivot_section(pl_df, month_keys, month_labels, "📊 CONSOLIDATED (All Countries)")
+    )
+
+    # ── Section 2: Per Legal Entity ──
+    entities = sorted(pl_df["Company Country"].dropna().unique())
+    for entity in entities:
+        entity_df = pl_df[pl_df["Company Country"] == entity]
+        all_rows.extend(
+            build_pivot_section(entity_df, month_keys, month_labels, f"🏢 {entity}")
+        )
+
+    # ── Section 3: Per CostCenter ──
+    cost_centers = pl_df["CostCenter"].dropna().astype(str).str.strip()
+    cost_centers = sorted(cost_centers[cost_centers != ""].unique())
+    for cc in cost_centers:
+        cc_df = pl_df[pl_df["CostCenter"].astype(str).str.strip() == cc]
+        all_rows.extend(
+            build_pivot_section(cc_df, month_keys, month_labels, f"📁 CostCenter: {cc}")
+        )
+
+    # Build display DataFrame (without _style)
+    columns = ["Description"] + month_labels + ["Variance"]
+    display_df = pd.DataFrame(all_rows)[columns]
+
+    return display_df, all_rows
+
+
+def pivot_to_excel_bytes(rows: list[dict], columns: list[str]) -> bytes:
+    """Write the pivot report to a styled Excel file."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, numbers
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pivot P&L Report"
+
+    # Styles
+    section_font = Font(bold=True, size=13, color="FFFFFF")
+    section_fill = PatternFill(start_color="2D2D44", end_color="2D2D44", fill_type="solid")
+    group_font = Font(bold=True, size=11, color="1B3A5C")
+    group_fill = PatternFill(start_color="E8EEF4", end_color="E8EEF4", fill_type="solid")
+    total_font = Font(bold=True, size=10)
+    total_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill(start_color="3A3A5C", end_color="3A3A5C", fill_type="solid")
+    num_fmt = '#,##0.00'
+
+    # Write header row
+    for col_idx, col_name in enumerate(columns, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    # Write data rows
+    for row_idx, row_data in enumerate(rows, start=2):
+        style = row_data.get("_style", "detail")
+        for col_idx, col_name in enumerate(columns, start=1):
+            val = row_data.get(col_name, "")
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+
+            if style == "section":
+                cell.font = section_font
+                cell.fill = section_fill
+            elif style == "group":
+                cell.font = group_font
+                cell.fill = group_fill
+            elif style == "total":
+                cell.font = total_font
+                cell.fill = total_fill
+
+            # Number formatting for value columns
+            if col_idx > 1 and isinstance(val, (int, float)):
+                cell.number_format = num_fmt
+                cell.alignment = Alignment(horizontal="right")
+
+    # Set column widths
+    ws.column_dimensions["A"].width = 40
+    for col_idx in range(2, len(columns) + 1):
+        from openpyxl.utils import get_column_letter
+        ws.column_dimensions[get_column_letter(col_idx)].width = 18
+
+    buf = io.BytesIO()
+    wb.save(buf)
     return buf.getvalue()
 
 
@@ -629,6 +861,100 @@ def main_app():
             key="download_report_btn",
         )
 
+    # ── Pivot P&L Report Section ─────────────────────────────
+    if "master_df" in st.session_state:
+        st.divider()
+        st.subheader("📈 Pivot P&L Report")
+        st.markdown(
+            "Generate a pivot report grouped by **Statement → Mapping**, "
+            "across **3 consecutive months** with variance, split by "
+            "**Legal Entity** and **CostCenter**."
+        )
+
+        p_col1, p_col2 = st.columns([1, 1])
+        with p_col1:
+            pivot_month = st.selectbox(
+                "📅 Latest Month",
+                options=list(range(1, 13)),
+                format_func=lambda m: [
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                ][m - 1],
+                index=0,
+                key="pivot_month",
+            )
+        with p_col2:
+            pivot_year = st.number_input(
+                "📅 Year",
+                min_value=2020,
+                max_value=2030,
+                value=2026,
+                step=1,
+                key="pivot_year",
+            )
+
+        # Show which 3 months will be used
+        import calendar
+        months_preview = _prev_months(int(pivot_year), int(pivot_month), 3)
+        months_str = ", ".join(
+            f"{calendar.month_abbr[m]} {y}" for y, m in months_preview
+        )
+        st.caption(f"Report months: **{months_str}**")
+
+        gen_pivot = st.button(
+            "📈 Generate Pivot Report",
+            type="primary",
+            key="gen_pivot_btn",
+        )
+
+        if gen_pivot:
+            with st.spinner("Building pivot report…"):
+                display_df, raw_rows = build_pivot_report(
+                    st.session_state["master_df"],
+                    int(pivot_year),
+                    int(pivot_month),
+                )
+                pivot_columns = list(display_df.columns)
+                pivot_xlsx = pivot_to_excel_bytes(raw_rows, pivot_columns)
+
+                m_labels = [
+                    calendar.month_abbr[m] + f"{y}"
+                    for y, m in months_preview
+                ]
+                pivot_fname = f"LXT_Pivot_PL_{m_labels[0]}_to_{m_labels[2]}.xlsx"
+
+                st.session_state["pivot_data"] = pivot_xlsx
+                st.session_state["pivot_name"] = pivot_fname
+                st.session_state["pivot_preview"] = display_df
+                st.session_state["pivot_rows"] = len(display_df)
+
+        # Show persisted pivot results
+        if "pivot_data" in st.session_state:
+            st.divider()
+
+            col1, col2 = st.columns(2)
+            col1.metric("Pivot Rows", f"{st.session_state['pivot_rows']:,}")
+            col2.metric("File", st.session_state["pivot_name"])
+
+            with st.expander("📋 Pivot Preview (first 200 rows)", expanded=True):
+                st.dataframe(
+                    st.session_state["pivot_preview"].head(200),
+                    use_container_width=True,
+                )
+
+            pivot_fname = str(st.session_state["pivot_name"])
+            if not pivot_fname.endswith(".xlsx"):
+                pivot_fname += ".xlsx"
+
+            st.download_button(
+                label="📥 Download Pivot Report",
+                data=st.session_state["pivot_data"],
+                file_name=pivot_fname,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary",
+                key="download_pivot_btn",
+            )
+
 
 def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     """Execute the full ETL pipeline with progress UI."""
@@ -759,6 +1085,9 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     st.session_state["report_name"] = file_name
     st.session_state["report_rows"] = len(master_df)
     st.session_state["report_preview"] = master_df.head(100)
+
+    # Store master_df for pivot report generation
+    st.session_state["master_df"] = master_df
 
 
 # ═══════════════════════════════════════════════════════════════
