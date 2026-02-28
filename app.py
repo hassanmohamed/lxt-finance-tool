@@ -107,13 +107,13 @@ QB_COLUMN_MAP = {
     "Class": "Class full name",
     "Product/Service": "Item/Service",
     "Amount": "Balance",
-    \"Debit\": \"Debit\",
-    \"Credit\": \"Credit\",
+    "Debit": "Debit",
+    "Credit": "Credit",
     # NOTE: "Foreign Debit"/"Foreign Credit" intentionally excluded —
     #   they contain foreign currency values (e.g. USD for a CAD company).
     #   We always want the native/home currency amounts.
-    \"Nat Debit\": \"Debit\",
-    \"Nat Credit\": \"Credit\",
+    "Nat Debit": "Debit",
+    "Nat Credit": "Credit",
 }
 
 QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name,item_name"
