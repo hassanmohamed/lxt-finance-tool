@@ -506,6 +506,66 @@ def apply_mapping(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ═══════════════════════════════════════════════════════════════
+# Forex Rate File Parser
+# ═══════════════════════════════════════════════════════════════
+def parse_forex_rate_file(uploaded_file) -> dict[str, dict[str, dict[str, float]]]:
+    """
+    Parse an uploaded Exchange Rate file (Excel or CSV) and return a
+    nested lookup:
+        { currency: { month_key: { "closing": rate, "average": rate } } }
+
+    Expected columns:
+      A  Currency
+      B  End of Month       (date — used to derive month'year key)
+      F  ClosingRate2       (closing rate vs USD)
+      G  AverageRate2       (average rate vs USD)
+    """
+    name = uploaded_file.name.lower()
+    if name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
+
+    # Normalise column names
+    df.columns = df.columns.str.strip()
+
+    # Validate required columns exist
+    required = {"Currency", "End of Month", "ClosingRate2", "AverageRate2"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Uploaded file is missing columns: {', '.join(missing)}")
+
+    # Parse the End of Month date and build a month key like "1'2026"
+    df["_eom"] = pd.to_datetime(df["End of Month"], format="mixed", errors="coerce")
+    df["_month_key"] = (
+        df["_eom"].dt.month.astype("Int64").astype(str)
+        + "'"
+        + df["_eom"].dt.year.astype("Int64").astype(str)
+    )
+
+    df["ClosingRate2"] = pd.to_numeric(df["ClosingRate2"], errors="coerce").fillna(1.0)
+    df["AverageRate2"] = pd.to_numeric(df["AverageRate2"], errors="coerce").fillna(1.0)
+
+    # Build lookup dict
+    forex: dict[str, dict[str, dict[str, float]]] = {}
+    for _, row in df.iterrows():
+        ccy = str(row["Currency"]).strip().upper()
+        mk = str(row["_month_key"]).strip()
+        if not ccy or not mk or mk == "<NA>'<NA>":
+            continue
+        forex.setdefault(ccy, {})[mk] = {
+            "closing": float(row["ClosingRate2"]),
+            "average": float(row["AverageRate2"]),
+        }
+
+    # Ensure USD always resolves to 1.0
+    if "USD" not in forex:
+        forex["USD"] = {}
+
+    return forex
+
+
+# ═══════════════════════════════════════════════════════════════
 # Excel Export (in-memory)
 # ═══════════════════════════════════════════════════════════════
 def to_excel_bytes(df: pd.DataFrame) -> bytes:
@@ -618,8 +678,8 @@ def _compute_section_values(
         mapping = row["_mapping"]
 
         if style == "group":
-            # Group header — no values
-            values[idx] = {c: "" for c in col_names}
+            # Group header — no values (use None for numeric compatibility)
+            values[idx] = {c: None for c in col_names}
             continue
 
         if style == "detail" and mapping is not None:
@@ -895,52 +955,37 @@ def main_app():
 
     st.divider()
 
-    # ── Forex Rate Inputs ────────────────────────────────────
-    with st.expander("💱 Forex Rates (per currency)", expanded=False):
+    # ── Forex Rate File Upload ────────────────────────────────
+    with st.expander("💱 Exchange Rate File", expanded=True):
         st.caption(
-            "Enter the **Closing Rate** (for Balance Sheet items) and "
-            "**Average Rate** (for P&L items) for each currency. "
-            "USD is always 1.0."
+            "Upload the **Consolidated Exchange Rate** file (Excel or CSV). "
+            "The file should contain columns: **Currency** (A), "
+            "**End of Month** (B), **ClosingRate2** (F), **AverageRate2** (G). "
+            "Rates will be matched automatically by currency and month."
         )
-        forex_rates: dict[str, dict[str, float]] = {}
-        # Default rates from Jan 2026 (ClosingRate2 / AverageRate2)
-        default_rates = {
-            "EGP": {"closing": 0.021308, "average": 0.021170},
-            "CAD": {"closing": 0.734376, "average": 0.726164},
-            "AUD": {"closing": 0.696136, "average": 0.679199},
-            "RON": {"closing": 0.232580, "average": 0.230658},
-            "INR": {"closing": 0.010906, "average": 0.011009},
-            "EUR": {"closing": 1.184975, "average": 1.174584},
-            "GBP": {"closing": 1.368925, "average": 1.353443},
-        }
-        for ccy in FOREX_CURRENCIES:
-            defaults = default_rates.get(ccy, {"closing": 1.0, "average": 1.0})
-            c1, c2, c3 = st.columns([1, 1, 1])
-            with c1:
-                st.markdown(f"**{ccy}**")
-            with c2:
-                closing = st.number_input(
-                    f"{ccy} Closing Rate (B.S)",
-                    min_value=0.0,
-                    value=defaults["closing"],
-                    step=0.0001,
-                    format="%.6f",
-                    key=f"fx_closing_{ccy}",
-                    label_visibility="collapsed",
+        forex_file = st.file_uploader(
+            "Upload Exchange Rate File",
+            type=["xlsx", "xls", "csv"],
+            key="forex_file_upload",
+            label_visibility="collapsed",
+        )
+
+        forex_rates: dict[str, dict[str, dict[str, float]]] = {}
+        if forex_file is not None:
+            try:
+                forex_rates = parse_forex_rate_file(forex_file)
+                # Show summary of loaded rates
+                currencies_loaded = sorted(forex_rates.keys())
+                months_count = max(len(v) for v in forex_rates.values()) if forex_rates else 0
+                st.success(
+                    f"✅ Loaded rates for **{len(currencies_loaded)}** currencies "
+                    f"across **{months_count}** months: {', '.join(currencies_loaded)}"
                 )
-            with c3:
-                average = st.number_input(
-                    f"{ccy} Average Rate (P&L)",
-                    min_value=0.0,
-                    value=defaults["average"],
-                    step=0.0001,
-                    format="%.6f",
-                    key=f"fx_average_{ccy}",
-                    label_visibility="collapsed",
-                )
-            forex_rates[ccy] = {"closing": closing, "average": average}
-        # USD is always 1
-        forex_rates["USD"] = {"closing": 1.0, "average": 1.0}
+            except Exception as exc:
+                st.error(f"❌ Failed to parse exchange rate file: {exc}")
+                forex_rates = {}
+        else:
+            st.info("ℹ️ No exchange rate file uploaded — all forex rates will default to **1.0**.")
 
     st.divider()
 
@@ -1068,7 +1113,7 @@ def main_app():
             with st.expander("📋 Pivot Preview (first 200 rows)", expanded=True):
                 st.dataframe(
                     st.session_state["pivot_preview"].head(200),
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             pivot_fname = str(st.session_state["pivot_name"])
@@ -1188,11 +1233,20 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     # Apply Consol Mapping Sheet lookup
     master_df = apply_mapping(master_df)
 
-    # Apply Forex Rate based on Item (P&L → average, B.S → closing)
+    # Apply Forex Rate based on Currency + Reporting Month + Item
     def _get_forex_rate(row):
-        ccy = row.get("Currency", "")
-        item = row.get("Item", "")
-        rates = forex_rates.get(ccy, {"closing": 1.0, "average": 1.0})
+        ccy = str(row.get("Currency", "")).strip().upper()
+        item = str(row.get("Item", "")).strip()
+        month = str(row.get("Reporting Month", "")).strip()
+
+        # USD is always 1.0
+        if ccy == "USD":
+            return 1.0
+
+        # Look up per-month rates for the currency
+        month_rates = forex_rates.get(ccy, {})
+        rates = month_rates.get(month, {"closing": 1.0, "average": 1.0})
+
         if item == "P&L":
             return rates["average"]
         else:
