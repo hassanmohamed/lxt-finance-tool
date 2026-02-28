@@ -535,102 +535,138 @@ def _prev_months(year: int, month: int, count: int) -> list[tuple[int, int]]:
     return result
 
 
-def build_pivot_section(
-    df: pd.DataFrame,
-    month_keys: list[str],
-    month_labels: list[str],
-    section_label: str,
-) -> list[dict]:
+def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
     """
-    Build one pivot section (Consolidated / per-entity / per-CostCenter).
-
-    Returns a list of row dicts with keys:
-      'Description', month_labels[0], month_labels[1], month_labels[2], 'Variance', '_style'
-    '_style' is 'section' | 'group' | 'detail' | 'total' for formatting.
+    Build the shared row hierarchy: Statement (group) → Mapping (detail) + totals.
+    Each entry has: Code, Description, _style, _statement, _mapping.
     """
-    import calendar
-
     rows: list[dict] = []
-
-    # Section header row
-    header = {"Description": section_label, "_style": "section"}
-    for lbl in month_labels:
-        header[lbl] = ""
-    header["Variance"] = ""
-    rows.append(header)
-
-    # Get unique Statements preserving order
-    statements = df["Statement"].dropna().unique()
+    statements = master_df["Statement"].dropna().unique()
 
     for stmt in statements:
         stmt_str = str(stmt).strip()
         if not stmt_str or stmt_str.lower() == "nan":
             continue
 
-        stmt_df = df[df["Statement"] == stmt]
+        stmt_df = master_df[master_df["Statement"] == stmt]
 
-        # Group header
-        group_row = {"Description": stmt_str, "_style": "group"}
-        for lbl in month_labels:
-            group_row[lbl] = ""
-        group_row["Variance"] = ""
-        rows.append(group_row)
+        # Statement group header
+        rows.append({
+            "Code": "",
+            "Description": stmt_str,
+            "_style": "group",
+            "_statement": stmt,
+            "_mapping": None,
+        })
 
         # Mapping detail lines
         mappings = stmt_df["Mapping"].dropna().unique()
-        stmt_totals = {lbl: 0.0 for lbl in month_labels}
-
         for mapping in mappings:
             mapping_str = str(mapping).strip()
             if not mapping_str or mapping_str.lower() == "nan":
                 continue
 
-            detail = {"Description": f"  {mapping_str}", "_style": "detail"}
+            # Find the most common Account Number for this mapping
+            map_df = stmt_df[stmt_df["Mapping"] == mapping]
+            acct_nums = map_df["Account Number"].dropna().astype(str).str.strip()
+            acct_nums = acct_nums[acct_nums != ""]
+            code = acct_nums.mode().iloc[0] if len(acct_nums) > 0 else ""
 
-            for i, mk in enumerate(month_keys):
-                lbl = month_labels[i]
-                mask = (
-                    (stmt_df["Mapping"] == mapping)
-                    & (stmt_df["Reporting Month"] == mk)
-                )
-                val = stmt_df.loc[mask, "Amount in USD (Reporting Currency)"].sum()
-                detail[lbl] = round(val, 2)
-                stmt_totals[lbl] += val
-
-            # Variance = latest month - previous month
-            detail["Variance"] = round(
-                detail[month_labels[0]] - detail[month_labels[1]], 2
-            )
-            rows.append(detail)
+            rows.append({
+                "Code": code,
+                "Description": f"  {mapping_str}",
+                "_style": "detail",
+                "_statement": stmt,
+                "_mapping": mapping,
+            })
 
         # Statement total row
-        total_row = {"Description": f"Total {stmt_str}", "_style": "total"}
-        for lbl in month_labels:
-            total_row[lbl] = round(stmt_totals[lbl], 2)
-        total_row["Variance"] = round(
-            stmt_totals[month_labels[0]] - stmt_totals[month_labels[1]], 2
-        )
-        rows.append(total_row)
-
-    # Add an empty spacer row after each section
-    spacer = {"Description": "", "_style": "detail"}
-    for lbl in month_labels:
-        spacer[lbl] = ""
-    spacer["Variance"] = ""
-    rows.append(spacer)
+        rows.append({
+            "Code": "",
+            "Description": f"Total {stmt_str}",
+            "_style": "total",
+            "_statement": stmt,
+            "_mapping": "__TOTAL__",
+        })
 
     return rows
+
+
+def _compute_section_values(
+    df: pd.DataFrame,
+    row_index: list[dict],
+    month_keys: list[str],
+    col_prefix: str,
+    month_labels: list[str],
+) -> tuple[list[str], dict[int, dict[str, float]]]:
+    """
+    Compute values for one section (Consolidated / Entity / CostCenter).
+
+    Returns:
+      - col_names: list of column names [prefix M1, prefix M2, prefix M3, prefix Var]
+      - values: dict mapping row_index position → {col_name: value}
+    """
+    col_names = [f"{col_prefix} {lbl}" for lbl in month_labels] + [f"{col_prefix} Variance"]
+    values: dict[int, dict[str, float]] = {}
+
+    # Track totals per statement for total rows
+    stmt_totals: dict[str, dict[str, float]] = {}
+
+    for idx, row in enumerate(row_index):
+        style = row["_style"]
+        stmt = row["_statement"]
+        mapping = row["_mapping"]
+
+        if style == "group":
+            # Group header — no values
+            values[idx] = {c: "" for c in col_names}
+            continue
+
+        if style == "detail" and mapping is not None:
+            row_vals = {}
+            for i, mk in enumerate(month_keys):
+                cn = col_names[i]
+                mask = (
+                    (df["Statement"] == stmt)
+                    & (df["Mapping"] == mapping)
+                    & (df["Reporting Month"] == mk)
+                )
+                val = df.loc[mask, "Amount in USD (Reporting Currency)"].sum()
+                row_vals[cn] = round(val, 2)
+
+                # Accumulate statement totals
+                total_key = str(stmt)
+                if total_key not in stmt_totals:
+                    stmt_totals[total_key] = {c: 0.0 for c in col_names[:-1]}
+                stmt_totals[total_key][cn] += val
+
+            # Variance = latest month - previous month
+            row_vals[col_names[-1]] = round(row_vals[col_names[0]] - row_vals[col_names[1]], 2)
+            values[idx] = row_vals
+
+        elif style == "total" and mapping == "__TOTAL__":
+            total_key = str(stmt)
+            totals = stmt_totals.get(total_key, {c: 0.0 for c in col_names[:-1]})
+            row_vals = {c: round(totals.get(c, 0.0), 2) for c in col_names[:-1]}
+            row_vals[col_names[-1]] = round(row_vals[col_names[0]] - row_vals[col_names[1]], 2)
+            values[idx] = row_vals
+
+    return col_names, values
 
 
 def build_pivot_report(
     master_df: pd.DataFrame,
     selected_year: int,
     selected_month: int,
-) -> tuple[pd.DataFrame, list[dict]]:
+) -> tuple[pd.DataFrame, list[dict], list[str], list[tuple[str, list[str]]]]:
     """
-    Build the full pivot P&L report from the master GL data.
+    Build the full horizontal pivot P&L report.
 
-    Returns (display_df, raw_rows) where raw_rows contains '_style' metadata.
+    Returns:
+      - display_df: DataFrame for Streamlit preview
+      - raw_rows: list of row dicts with '_style' metadata
+      - all_columns: ordered list of all column names
+      - section_groups: list of (section_label, [col_names]) for Excel header grouping
     """
     import calendar
 
@@ -639,94 +675,181 @@ def build_pivot_report(
     month_keys = [_month_key(y, m) for y, m in months]
     month_labels = [calendar.month_abbr[m] + f" {y}" for y, m in months]
 
-    # Filter to P&L items only (the pivot is an income statement)
     pl_df = master_df.copy()
 
-    all_rows: list[dict] = []
+    # Build shared row hierarchy
+    row_index = _build_row_index(pl_df)
 
-    # ── Section 1: Consolidated (all countries) ──
-    all_rows.extend(
-        build_pivot_section(pl_df, month_keys, month_labels, "📊 CONSOLIDATED (All Countries)")
-    )
+    # Collect all section column groups
+    all_section_cols: list[str] = []
+    section_groups: list[tuple[str, list[str]]] = []
+
+    # Helper to add a section
+    def add_section(data_df, prefix):
+        col_names, vals = _compute_section_values(
+            data_df, row_index, month_keys, prefix, month_labels
+        )
+        all_section_cols.extend(col_names)
+        section_groups.append((prefix, col_names))
+        return vals
+
+    # ── Section 1: Consolidated ──
+    all_values = [add_section(pl_df, "Consolidated")]
 
     # ── Section 2: Per Legal Entity ──
     entities = sorted(pl_df["Company Country"].dropna().unique())
     for entity in entities:
         entity_df = pl_df[pl_df["Company Country"] == entity]
-        all_rows.extend(
-            build_pivot_section(entity_df, month_keys, month_labels, f"🏢 {entity}")
-        )
+        all_values.append(add_section(entity_df, entity))
 
     # ── Section 3: Per CostCenter ──
     cost_centers = pl_df["CostCenter"].dropna().astype(str).str.strip()
     cost_centers = sorted(cost_centers[cost_centers != ""].unique())
     for cc in cost_centers:
         cc_df = pl_df[pl_df["CostCenter"].astype(str).str.strip() == cc]
-        all_rows.extend(
-            build_pivot_section(cc_df, month_keys, month_labels, f"📁 CostCenter: {cc}")
-        )
+        all_values.append(add_section(cc_df, f"CC: {cc}"))
 
-    # Build display DataFrame (without _style)
-    columns = ["Description"] + month_labels + ["Variance"]
-    display_df = pd.DataFrame(all_rows)[columns]
+    # Build final rows
+    all_columns = ["Code", "Description"] + all_section_cols
+    raw_rows: list[dict] = []
 
-    return display_df, all_rows
+    for idx, row in enumerate(row_index):
+        out = {
+            "Code": row["Code"],
+            "Description": row["Description"],
+            "_style": row["_style"],
+        }
+        for section_vals in all_values:
+            if idx in section_vals:
+                out.update(section_vals[idx])
+            # Missing values default to empty for group rows
+        raw_rows.append(out)
+
+    # Build display DataFrame
+    display_df = pd.DataFrame(raw_rows)
+    display_cols = [c for c in all_columns if c in display_df.columns]
+    display_df = display_df[display_cols]
+
+    return display_df, raw_rows, all_columns, section_groups
 
 
-def pivot_to_excel_bytes(rows: list[dict], columns: list[str]) -> bytes:
-    """Write the pivot report to a styled Excel file."""
+def pivot_to_excel_bytes(
+    rows: list[dict],
+    columns: list[str],
+    section_groups: list[tuple[str, list[str]]],
+    month_labels: list[str],
+) -> bytes:
+    """Write the horizontal pivot report to a styled Excel file."""
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, numbers
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Pivot P&L Report"
 
-    # Styles
-    section_font = Font(bold=True, size=13, color="FFFFFF")
+    # ── Styles ──
+    section_font = Font(bold=True, size=11, color="FFFFFF")
     section_fill = PatternFill(start_color="2D2D44", end_color="2D2D44", fill_type="solid")
-    group_font = Font(bold=True, size=11, color="1B3A5C")
+    group_font = Font(bold=True, size=10, color="1B3A5C")
     group_fill = PatternFill(start_color="E8EEF4", end_color="E8EEF4", fill_type="solid")
     total_font = Font(bold=True, size=10)
     total_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
-    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_font = Font(bold=True, size=10, color="FFFFFF")
     header_fill = PatternFill(start_color="3A3A5C", end_color="3A3A5C", fill_type="solid")
+    section_header_fills = [
+        PatternFill(start_color="1B4F72", end_color="1B4F72", fill_type="solid"),
+        PatternFill(start_color="7D3C98", end_color="7D3C98", fill_type="solid"),
+        PatternFill(start_color="1E8449", end_color="1E8449", fill_type="solid"),
+        PatternFill(start_color="B9770E", end_color="B9770E", fill_type="solid"),
+        PatternFill(start_color="922B21", end_color="922B21", fill_type="solid"),
+    ]
     num_fmt = '#,##0.00'
+    center_align = Alignment(horizontal="center")
+    right_align = Alignment(horizontal="right")
+    thin_border = Border(
+        bottom=Side(style="thin", color="CCCCCC"),
+    )
 
-    # Write header row
-    for col_idx, col_name in enumerate(columns, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=col_name)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center")
+    # ── Row 1: Section group headers (merged) ──
+    # Code + Description stay empty on row 1
+    ws.cell(row=1, column=1, value="Code").font = header_font
+    ws.cell(row=1, column=1).fill = header_fill
+    ws.cell(row=1, column=1).alignment = center_align
+    ws.cell(row=1, column=2, value="Description").font = header_font
+    ws.cell(row=1, column=2).fill = header_fill
+    ws.cell(row=1, column=2).alignment = center_align
 
-    # Write data rows
-    for row_idx, row_data in enumerate(rows, start=2):
+    col_offset = 3  # sections start at column C
+    for sec_idx, (sec_label, sec_cols) in enumerate(section_groups):
+        fill = section_header_fills[sec_idx % len(section_header_fills)]
+        start_col = col_offset
+        end_col = col_offset + len(sec_cols) - 1
+
+        # Merge section header
+        ws.merge_cells(
+            start_row=1, start_column=start_col,
+            end_row=1, end_column=end_col
+        )
+        cell = ws.cell(row=1, column=start_col, value=sec_label)
+        cell.font = Font(bold=True, size=11, color="FFFFFF")
+        cell.fill = fill
+        cell.alignment = center_align
+
+        col_offset += len(sec_cols)
+
+    # ── Row 2: Month sub-headers ──
+    ws.cell(row=2, column=1, value="").fill = header_fill
+    ws.cell(row=2, column=2, value="").fill = header_fill
+
+    col_offset = 3
+    for sec_idx, (sec_label, sec_cols) in enumerate(section_groups):
+        for i, col_name in enumerate(sec_cols):
+            cell = ws.cell(row=2, column=col_offset + i)
+            # Extract the sub-label (remove the section prefix)
+            parts = col_name.split(" ", 1)
+            if len(parts) > 1:
+                # Remove the prefix before the month label
+                prefix = sec_label + " "
+                sub_label = col_name[len(prefix):] if col_name.startswith(prefix) else col_name
+            else:
+                sub_label = col_name
+            cell.value = sub_label
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_align
+        col_offset += len(sec_cols)
+
+    # ── Data rows (starting row 3) ──
+    for row_idx, row_data in enumerate(rows, start=3):
         style = row_data.get("_style", "detail")
+
         for col_idx, col_name in enumerate(columns, start=1):
             val = row_data.get(col_name, "")
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
 
-            if style == "section":
-                cell.font = section_font
-                cell.fill = section_fill
-            elif style == "group":
+            if style == "group":
                 cell.font = group_font
                 cell.fill = group_fill
             elif style == "total":
                 cell.font = total_font
                 cell.fill = total_fill
+            elif style == "detail":
+                cell.border = thin_border
 
-            # Number formatting for value columns
-            if col_idx > 1 and isinstance(val, (int, float)):
+            # Number formatting for value columns (col 3+)
+            if col_idx > 2 and isinstance(val, (int, float)):
                 cell.number_format = num_fmt
-                cell.alignment = Alignment(horizontal="right")
+                cell.alignment = right_align
 
-    # Set column widths
-    ws.column_dimensions["A"].width = 40
-    for col_idx in range(2, len(columns) + 1):
-        from openpyxl.utils import get_column_letter
-        ws.column_dimensions[get_column_letter(col_idx)].width = 18
+    # ── Column widths ──
+    ws.column_dimensions["A"].width = 12
+    ws.column_dimensions["B"].width = 38
+    for col_idx in range(3, len(columns) + 1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 15
+
+    # Freeze panes: freeze Code + Description columns and the 2 header rows
+    ws.freeze_panes = "C3"
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -909,16 +1032,22 @@ def main_app():
 
         if gen_pivot:
             with st.spinner("Building pivot report…"):
-                display_df, raw_rows = build_pivot_report(
+                display_df, raw_rows, all_columns, section_groups = build_pivot_report(
                     st.session_state["master_df"],
                     int(pivot_year),
                     int(pivot_month),
                 )
-                pivot_columns = list(display_df.columns)
-                pivot_xlsx = pivot_to_excel_bytes(raw_rows, pivot_columns)
+                # Get month labels for Excel sub-headers
+                import calendar as _cal
+                _m_tuples = _prev_months(int(pivot_year), int(pivot_month), 3)
+                _m_labels = [_cal.month_abbr[m] + f" {y}" for y, m in _m_tuples]
+
+                pivot_xlsx = pivot_to_excel_bytes(
+                    raw_rows, all_columns, section_groups, _m_labels
+                )
 
                 m_labels = [
-                    calendar.month_abbr[m] + f"{y}"
+                    _cal.month_abbr[m] + f"{y}"
                     for y, m in months_preview
                 ]
                 pivot_fname = f"LXT_Pivot_PL_{m_labels[0]}_to_{m_labels[2]}.xlsx"
