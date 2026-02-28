@@ -67,6 +67,7 @@ OUTPUT_COLUMNS = [
     "Debit",
     "Credit",
     "Class full name",
+    "Item/Service",
     "Company Country",
     "Mapping",
     "Item",
@@ -91,6 +92,7 @@ QB_COLUMN_MAP = {
     "debt_amt": "Debit",
     "credit_amt": "Credit",
     "klass_name": "Class full name",
+    "item_name": "Item/Service",
     # Display-name ColTitles returned by the API
     "Account": "Distribution account",
     "Distribution Account": "Distribution account",
@@ -103,6 +105,7 @@ QB_COLUMN_MAP = {
     "Memo/Description": "Memo/Description",
     "Date": "Transaction date",
     "Class": "Class full name",
+    "Product/Service": "Item/Service",
     "Amount": "Balance",
     \"Debit\": \"Debit\",
     \"Credit\": \"Credit\",
@@ -113,7 +116,7 @@ QB_COLUMN_MAP = {
     \"Nat Credit\": \"Credit\",
 }
 
-QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name"
+QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name,item_name"
 
 
 # ═══════════════════════════════════════════════════════════════
