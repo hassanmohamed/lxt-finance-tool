@@ -84,6 +84,7 @@ QB_COLUMN_MAP = {
     "vend_name": "Supplier",
     "doc_num": "Number",
     "subt_nat_amount": "Balance",
+    "subt_nat_home_amount": "Balance",
     "debt_amt": "Debit",
     "credit_amt": "Credit",
     "klass_name": "Class full name",
@@ -101,6 +102,8 @@ QB_COLUMN_MAP = {
     "Amount": "Balance",
     "Debit": "Debit",
     "Credit": "Credit",
+    # For multi-currency companies the API labels these as "Foreign"
+    # but the values are in the company's home currency.
     "Foreign Debit": "Debit",
     "Foreign Credit": "Credit",
     "Nat Debit": "Debit",
@@ -108,7 +111,7 @@ QB_COLUMN_MAP = {
 }
 
 # Columns to request from the API (internal keys only).
-QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,debt_amt,credit_amt,klass_name"
+QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,subt_nat_home_amount,debt_amt,credit_amt,klass_name"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
