@@ -112,15 +112,18 @@ QB_COLUMN_MAP = {
     "Amount": "Balance",
     "Debit": "Debit",
     "Credit": "Credit",
-    # For multi-currency companies the API labels these as "Foreign"
-    # but the values are in the company's home currency.
-    "Foreign Debit": "Debit",
-    "Foreign Credit": "Credit",
-    "Nat Debit": "Debit",
-    "Nat Credit": "Credit",
+    # Home-currency debit/credit (from debt_home_amt / credit_home_amt)
+    "Home Debit": "Debit",
+    "Home Credit": "Credit",
+    "debt_home_amt": "Debit",
+    "credit_home_amt": "Credit",
+    # For multi-currency companies the API labels transaction-currency
+    # amounts as "Foreign Debit"/"Foreign Credit". We intentionally do NOT
+    # map them to Debit/Credit — we want home-currency amounts instead.
+    # "Foreign Debit" and "Foreign Credit" are kept as-is and ignored.
 }
 
-QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,subt_nat_home_amount,debt_amt,credit_amt,klass_name"
+QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name,doc_num,subt_nat_amount,subt_nat_home_amount,debt_amt,credit_amt,debt_home_amt,credit_home_amt,klass_name"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1170,18 +1173,40 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
                 with status_container:
                     st.write(f"🔄 **{label}** — Authenticating…")
 
-                # Auth
-                token_info = refresh_access_token(
-                    client_id, client_secret, refresh_token
-                )
+                # Auth — try gist token first, fall back to secrets.toml
+                token_info = None
+                secrets_token = company["refresh_token"]
+                used_token = refresh_token
+                try:
+                    token_info = refresh_access_token(
+                        client_id, client_secret, refresh_token
+                    )
+                except RuntimeError as auth_err:
+                    # If gist token failed and we have a different secrets.toml token, retry
+                    if (
+                        "invalid_grant" in str(auth_err)
+                        and secrets_token
+                        and secrets_token != refresh_token
+                    ):
+                        with status_container:
+                            st.write(
+                                f"⚠️ **{label}** — Gist token expired, "
+                                f"retrying with secrets.toml token…"
+                            )
+                        token_info = refresh_access_token(
+                            client_id, client_secret, secrets_token
+                        )
+                        used_token = secrets_token
+                    else:
+                        raise
 
                 # Track the new refresh token
                 new_refresh = token_info["refresh_token"]
                 updated_tokens[key] = new_refresh
 
                 # Also save locally (best-effort)
-                if new_refresh != refresh_token:
-                    _save_refresh_token(refresh_token, new_refresh)
+                if new_refresh != used_token:
+                    _save_refresh_token(used_token, new_refresh)
 
                 with status_container:
                     st.write(f"📥 **{label}** — Fetching General Ledger…")
