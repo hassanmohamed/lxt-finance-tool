@@ -163,7 +163,7 @@
 410101 Audio,410101,Audio,P&L,Revenue
 410103 Image,410103,Image,P&L,Revenue
 410102 Text,410102,Text,P&L,Revenue
-410104 Video,410104,Audio,P&L,Revenue
+410104 Video,410104,Video,P&L,Revenue
 620101 Advertising,620101,Advertising,P&L,Commercial
 620306 Conferences & Events,620306,Sponsorships & Events,P&L,Commercial
 620403 Market Research,620403,Market Research,P&L,Commercial
@@ -470,4 +470,3 @@ Wise bank charges,,Bank Charges,P&L,Bank Charges and Fees
 710704 Immediate write-off of low-value assets,710704,Bad Debt,P&L,Bad Debt Exp
 510501 Holiday,510501,Holiday,P&L,HR Cost-COPS Salaries & Wages OH
 610201 Salaries Temporary Allow in Lieu of Benefit,610201,Temporary Employees,P&L,HR Cost-G&A Temporary Employees
-410104 Video,410104,Video,P&L,Revenue
