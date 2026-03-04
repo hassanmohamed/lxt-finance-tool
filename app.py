@@ -31,9 +31,6 @@ st.set_page_config(
 QB_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 QB_BASE_URL = "https://quickbooks.api.intuit.com"
 
-# Path to the Consol Mapping sheet (lives alongside app.py)
-MAPPING_CSV_PATH = Path(__file__).parent / "Consol Mapping sheet.csv"
-
 # Path to the Streamlit secrets file (for auto-saving refresh tokens)
 SECRETS_PATH = Path(__file__).parent / ".streamlit" / "secrets.toml"
 
@@ -438,14 +435,17 @@ def transform(raw_rows: list[dict], company_label: str) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════
 # Consol Mapping Sheet Lookup
 # ═══════════════════════════════════════════════════════════════
-@st.cache_data
-def load_mapping() -> pd.DataFrame:
-    """Load the Consol Mapping sheet and return a lookup DataFrame."""
-    if not MAPPING_CSV_PATH.exists():
-        st.warning(f"Mapping file not found: {MAPPING_CSV_PATH}")
+def load_mapping(uploaded_file) -> pd.DataFrame:
+    """Load the Consol Mapping sheet from an uploaded file and return a lookup DataFrame."""
+    if uploaded_file is None:
         return pd.DataFrame(columns=["Account Number", "Mapping", "Item", "Statement"])
 
-    mapping_df = pd.read_csv(MAPPING_CSV_PATH)
+    name = uploaded_file.name.lower()
+    if name.endswith(".csv"):
+        mapping_df = pd.read_csv(uploaded_file)
+    else:
+        mapping_df = pd.read_excel(uploaded_file)
+
     # Normalise column names (strip whitespace)
     mapping_df.columns = mapping_df.columns.str.strip()
     # Ensure Account Number is string without float decimals (pandas reads as float64)
@@ -461,13 +461,12 @@ def load_mapping() -> pd.DataFrame:
     return mapping_df
 
 
-def apply_mapping(df: pd.DataFrame) -> pd.DataFrame:
+def apply_mapping(df: pd.DataFrame, mapping_df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract the leading account number code from 'Distribution account'
     (e.g. '110205' from '110205 WISE RON') and merge with the Consol
     Mapping sheet to add Mapping, Item, and Statement columns.
     """
-    mapping_df = load_mapping()
     if mapping_df.empty:
         return df
 
@@ -598,59 +597,145 @@ def _prev_months(year: int, month: int, count: int) -> list[tuple[int, int]]:
     return result
 
 
-def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
+def _classify_statements(master_df: pd.DataFrame) -> dict[str, str]:
     """
-    Build the shared row hierarchy: Statement (group) → Mapping (detail) + totals.
-    Each entry has: Code, Description, _style, _statement, _mapping.
+    Classify each Statement into 'revenue', 'cops', 'expenses', or 'other'
+    based on the leading digit of its Account Numbers.
+      4xxxxx → revenue,  5xxxxx → cops,  6xxxxx → expenses
     """
-    rows: list[dict] = []
-    statements = master_df["Statement"].dropna().unique()
-
-    for stmt in statements:
+    classification: dict[str, str] = {}
+    for stmt in master_df["Statement"].dropna().unique():
         stmt_str = str(stmt).strip()
         if not stmt_str or stmt_str.lower() == "nan":
             continue
-
         stmt_df = master_df[master_df["Statement"] == stmt]
+        acct_nums = stmt_df["Account Number"].dropna().astype(str).str.strip()
+        acct_nums = acct_nums[acct_nums != ""]
+        if acct_nums.empty:
+            classification[stmt_str] = "other"
+            continue
+        # Use the most common leading digit
+        leading = acct_nums.str[0]
+        mode_digit = leading.mode().iloc[0] if len(leading) > 0 else "0"
+        if mode_digit == "4":
+            classification[stmt_str] = "revenue"
+        elif mode_digit == "5":
+            classification[stmt_str] = "cops"
+        elif mode_digit == "6":
+            classification[stmt_str] = "expenses"
+        else:
+            classification[stmt_str] = "other"
+    return classification
 
-        # Statement group header
+
+def _build_statement_rows(master_df: pd.DataFrame, stmt) -> list[dict]:
+    """Build group header + detail lines + total row for a single Statement."""
+    stmt_str = str(stmt).strip()
+    stmt_df = master_df[master_df["Statement"] == stmt]
+    rows: list[dict] = []
+
+    # Statement group header
+    rows.append({
+        "Code": "",
+        "Description": stmt_str,
+        "_style": "group",
+        "_statement": stmt,
+        "_mapping": None,
+    })
+
+    # Mapping detail lines
+    mappings = stmt_df["Mapping"].dropna().unique()
+    for mapping in mappings:
+        mapping_str = str(mapping).strip()
+        if not mapping_str or mapping_str.lower() == "nan":
+            continue
+
+        # Find the most common Account Number for this mapping
+        map_df = stmt_df[stmt_df["Mapping"] == mapping]
+        acct_nums = map_df["Account Number"].dropna().astype(str).str.strip()
+        acct_nums = acct_nums[acct_nums != ""]
+        code = acct_nums.mode().iloc[0] if len(acct_nums) > 0 else ""
+
         rows.append({
-            "Code": "",
-            "Description": stmt_str,
-            "_style": "group",
+            "Code": code,
+            "Description": f"  {mapping_str}",
+            "_style": "detail",
             "_statement": stmt,
-            "_mapping": None,
+            "_mapping": mapping,
         })
 
-        # Mapping detail lines
-        mappings = stmt_df["Mapping"].dropna().unique()
-        for mapping in mappings:
-            mapping_str = str(mapping).strip()
-            if not mapping_str or mapping_str.lower() == "nan":
-                continue
+    # Statement total row
+    rows.append({
+        "Code": "",
+        "Description": f"Total {stmt_str}",
+        "_style": "total",
+        "_statement": stmt,
+        "_mapping": "__TOTAL__",
+    })
 
-            # Find the most common Account Number for this mapping
-            map_df = stmt_df[stmt_df["Mapping"] == mapping]
-            acct_nums = map_df["Account Number"].dropna().astype(str).str.strip()
-            acct_nums = acct_nums[acct_nums != ""]
-            code = acct_nums.mode().iloc[0] if len(acct_nums) > 0 else ""
+    return rows
 
-            rows.append({
-                "Code": code,
-                "Description": f"  {mapping_str}",
-                "_style": "detail",
-                "_statement": stmt,
-                "_mapping": mapping,
-            })
 
-        # Statement total row
-        rows.append({
-            "Code": "",
-            "Description": f"Total {stmt_str}",
-            "_style": "total",
-            "_statement": stmt,
-            "_mapping": "__TOTAL__",
-        })
+def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
+    """
+    Build the shared row hierarchy with calculated rows.
+
+    Order: Revenue stmts → COPS stmts → Gross Profit → GP% →
+           Expense stmts → Total Expenses → Other stmts
+    """
+    classification = _classify_statements(master_df)
+    statements = master_df["Statement"].dropna().unique()
+
+    # Group statements by category
+    revenue_stmts = [s for s in statements if classification.get(str(s).strip()) == "revenue"]
+    cops_stmts = [s for s in statements if classification.get(str(s).strip()) == "cops"]
+    expense_stmts = [s for s in statements if classification.get(str(s).strip()) == "expenses"]
+    other_stmts = [s for s in statements if classification.get(str(s).strip()) == "other"]
+
+    rows: list[dict] = []
+
+    # ── Revenue statements ──
+    for stmt in revenue_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
+
+    # ── COPS statements ──
+    for stmt in cops_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
+
+    # ── Gross Profit (Revenue - COPS) ──
+    rows.append({
+        "Code": "4XXXXX - 5XXXXXX",
+        "Description": "Gross Profit",
+        "_style": "calculated",
+        "_statement": "__CALCULATED__",
+        "_mapping": "__GROSS_PROFIT__",
+    })
+
+    # ── GP% (Gross Profit / Revenue) ──
+    rows.append({
+        "Code": "(4XXXXX - 5XXXXXX) / 4XXXXXX",
+        "Description": "Gross Profit %",
+        "_style": "calculated",
+        "_statement": "__CALCULATED__",
+        "_mapping": "__GP_PCT__",
+    })
+
+    # ── Expense statements ──
+    for stmt in expense_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
+
+    # ── Total Expenses ──
+    rows.append({
+        "Code": "6XXXXXX",
+        "Description": "Total Expenses",
+        "_style": "calculated",
+        "_statement": "__CALCULATED__",
+        "_mapping": "__TOTAL_EXPENSES__",
+    })
+
+    # ── Other statements (non-operating, etc.) ──
+    for stmt in other_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
 
     return rows
 
@@ -661,6 +746,7 @@ def _compute_section_values(
     month_keys: list[str],
     col_prefix: str,
     month_labels: list[str],
+    classification: dict[str, str],
 ) -> tuple[list[str], dict[int, dict[str, float]]]:
     """
     Compute values for one section (Consolidated / Entity / CostCenter).
@@ -681,7 +767,7 @@ def _compute_section_values(
         mapping = row["_mapping"]
 
         if style == "group":
-            # Group header — no values (use None for numeric compatibility)
+            # Group header — no values
             values[idx] = {c: None for c in col_names}
             continue
 
@@ -714,6 +800,49 @@ def _compute_section_values(
             row_vals[col_names[-1]] = round(row_vals[col_names[0]] - row_vals[col_names[1]], 2)
             values[idx] = row_vals
 
+        elif style == "calculated":
+            # ── Aggregate by category ──
+            def _cat_sum(category: str) -> dict[str, float]:
+                """Sum all statement totals belonging to a category."""
+                result = {c: 0.0 for c in col_names[:-1]}
+                for s_key, s_vals in stmt_totals.items():
+                    if classification.get(s_key) == category:
+                        for c in col_names[:-1]:
+                            result[c] += s_vals.get(c, 0.0)
+                return result
+
+            if mapping == "__GROSS_PROFIT__":
+                rev = _cat_sum("revenue")
+                cops = _cat_sum("cops")
+                row_vals = {c: round(rev[c] - cops[c], 2) for c in col_names[:-1]}
+                row_vals[col_names[-1]] = round(
+                    row_vals[col_names[0]] - row_vals[col_names[1]], 2
+                )
+                values[idx] = row_vals
+
+            elif mapping == "__GP_PCT__":
+                rev = _cat_sum("revenue")
+                cops = _cat_sum("cops")
+                row_vals = {}
+                for c in col_names[:-1]:
+                    gp = rev[c] - cops[c]
+                    row_vals[c] = f"{(gp / rev[c] * 100):.1f}%" if rev[c] != 0 else "0.0%"
+                # Variance for GP% — difference in percentage points
+                gp_latest = (rev[col_names[0]] - cops[col_names[0]])
+                gp_prev = (rev[col_names[1]] - cops[col_names[1]])
+                pct_latest = (gp_latest / rev[col_names[0]] * 100) if rev[col_names[0]] != 0 else 0
+                pct_prev = (gp_prev / rev[col_names[1]] * 100) if rev[col_names[1]] != 0 else 0
+                row_vals[col_names[-1]] = f"{(pct_latest - pct_prev):.1f}pp"
+                values[idx] = row_vals
+
+            elif mapping == "__TOTAL_EXPENSES__":
+                exp = _cat_sum("expenses")
+                row_vals = {c: round(exp[c], 2) for c in col_names[:-1]}
+                row_vals[col_names[-1]] = round(
+                    row_vals[col_names[0]] - row_vals[col_names[1]], 2
+                )
+                values[idx] = row_vals
+
     return col_names, values
 
 
@@ -740,8 +869,12 @@ def build_pivot_report(
 
     pl_df = master_df.copy()
 
+    # Keep only P&L items (exclude B.S / Balance Sheet rows)
+    pl_df = pl_df[pl_df["Item"].astype(str).str.strip().str.upper() == "P&L"]
+
     # Build shared row hierarchy
     row_index = _build_row_index(pl_df)
+    classification = _classify_statements(pl_df)
 
     # Collect all section column groups
     all_section_cols: list[str] = []
@@ -750,7 +883,7 @@ def build_pivot_report(
     # Helper to add a section
     def add_section(data_df, prefix):
         col_names, vals = _compute_section_values(
-            data_df, row_index, month_keys, prefix, month_labels
+            data_df, row_index, month_keys, prefix, month_labels, classification
         )
         all_section_cols.extend(col_names)
         section_groups.append((prefix, col_names))
@@ -818,6 +951,8 @@ def pivot_to_excel_bytes(
     group_fill = PatternFill(start_color="E8EEF4", end_color="E8EEF4", fill_type="solid")
     total_font = Font(bold=True, size=10)
     total_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+    calc_font = Font(bold=True, size=11, color="1A1A00")
+    calc_fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
     header_font = Font(bold=True, size=10, color="FFFFFF")
     header_fill = PatternFill(start_color="3A3A5C", end_color="3A3A5C", fill_type="solid")
     section_header_fills = [
@@ -897,6 +1032,9 @@ def pivot_to_excel_bytes(
             elif style == "total":
                 cell.font = total_font
                 cell.fill = total_fill
+            elif style == "calculated":
+                cell.font = calc_font
+                cell.fill = calc_fill
             elif style == "detail":
                 cell.border = thin_border
 
@@ -958,6 +1096,35 @@ def main_app():
 
     st.divider()
 
+    # ── Consol Mapping File Upload ─────────────────────────────
+    with st.expander("📑 Consol Mapping File", expanded=True):
+        st.caption(
+            "Upload the **Consol Mapping Sheet** file (Excel or CSV). "
+            "The file should contain columns: **Account Number**, "
+            "**Mapping**, **Item**, **Statement**."
+        )
+        mapping_file = st.file_uploader(
+            "Upload Consol Mapping File",
+            type=["xlsx", "xls", "csv"],
+            key="mapping_file_upload",
+            label_visibility="collapsed",
+        )
+
+        mapping_df = pd.DataFrame(columns=["Account Number", "Mapping", "Item", "Statement"])
+        if mapping_file is not None:
+            try:
+                mapping_df = load_mapping(mapping_file)
+                st.success(
+                    f"✅ Loaded **{len(mapping_df)}** account mappings."
+                )
+            except Exception as exc:
+                st.error(f"❌ Failed to parse mapping file: {exc}")
+                mapping_df = pd.DataFrame(columns=["Account Number", "Mapping", "Item", "Statement"])
+        else:
+            st.info("ℹ️ No mapping file uploaded — Mapping, Item, and Statement columns will be empty.")
+
+    st.divider()
+
     # ── Forex Rate File Upload ────────────────────────────────
     with st.expander("💱 Exchange Rate File", expanded=True):
         st.caption(
@@ -1004,6 +1171,7 @@ def main_app():
             start_date.strftime("%Y-%m-%d"),
             end_date.strftime("%Y-%m-%d"),
             forex_rates,
+            mapping_df,
         )
 
     # ── Show report results (persisted in session state) ──────
@@ -1133,7 +1301,7 @@ def main_app():
             )
 
 
-def _run_etl(start_date: str, end_date: str, forex_rates: dict):
+def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.DataFrame):
     """Execute the full ETL pipeline with progress UI."""
 
     # Load credentials from secrets
@@ -1256,7 +1424,7 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict):
     master_df = pd.concat(all_frames, ignore_index=True)
 
     # Apply Consol Mapping Sheet lookup
-    master_df = apply_mapping(master_df)
+    master_df = apply_mapping(master_df, mapping_df)
 
     # Apply Forex Rate based on Currency + Reporting Month + Item
     def _get_forex_rate(row):
