@@ -21,9 +21,425 @@ import streamlit as st
 # ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="LXT Financial Consolidated Report",
-    page_icon="📊",
+    page_icon="assets/lxt_logo.png",
     layout="wide",
 )
+
+# ─────────────────────────────────────────────────────────────
+# LXT Logo (base64 for inline embedding)
+# ─────────────────────────────────────────────────────────────
+_logo_path = Path(__file__).parent / "assets" / "lxt_logo.png"
+_logo_b64 = ""
+if _logo_path.exists():
+    _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
+
+# ─────────────────────────────────────────────────────────────
+# Custom CSS — LXT Branding
+# ─────────────────────────────────────────────────────────────
+_LXT_CSS = """
+<style>
+/* ══════════════════════════════════════════════════════ */
+/*  Google Fonts                                          */
+/* ══════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ══════════════════════════════════════════════════════ */
+/*  CSS Variables (LXT Brand)                             */
+/* ══════════════════════════════════════════════════════ */
+:root {
+    --lxt-orange: #FE6F38;
+    --lxt-orange-light: #FF8F5E;
+    --lxt-orange-dark: #E5592A;
+    --lxt-navy: #001C2B;
+    --lxt-navy-light: #0A1628;
+    --lxt-navy-mid: #132238;
+    --lxt-teal: #5E8B95;
+    --lxt-teal-light: #7BA8B2;
+    --lxt-white: #F0F2F6;
+    --lxt-grey: #8899A6;
+    --lxt-dark-text: #1A1A1A;
+    --lxt-body-text: #4B4B4B;
+    --lxt-card-bg: rgba(19, 34, 56, 0.6);
+    --lxt-glass: rgba(19, 34, 56, 0.4);
+    --lxt-border: rgba(94, 139, 149, 0.2);
+    --lxt-glow: rgba(254, 111, 56, 0.3);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Keyframe Animations                                   */
+/* ══════════════════════════════════════════════════════ */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+@keyframes gradientMove {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(254, 111, 56, 0.4); }
+    50%      { box-shadow: 0 0 0 8px rgba(254, 111, 56, 0); }
+}
+@keyframes borderGlow {
+    0%, 100% { border-color: rgba(94, 139, 149, 0.2); }
+    50%      { border-color: rgba(254, 111, 56, 0.4); }
+}
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Global Overrides                                      */
+/* ══════════════════════════════════════════════════════ */
+html, body, [class*="st-"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+body {
+    scroll-behavior: smooth;
+}
+
+/* Hide default Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header[data-testid="stHeader"] {
+    background: linear-gradient(180deg, var(--lxt-navy) 0%, transparent 100%) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Sidebar Styling                                       */
+/* ══════════════════════════════════════════════════════ */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0D1B2A 0%, #132238 50%, #0A1628 100%) !important;
+    border-right: 1px solid var(--lxt-border) !important;
+}
+section[data-testid="stSidebar"] .stMarkdown h3 {
+    color: var(--lxt-orange) !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+section[data-testid="stSidebar"] .stCaption {
+    color: var(--lxt-grey) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Buttons                                               */
+/* ══════════════════════════════════════════════════════ */
+.stButton > button[kind="primary"],
+button[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, var(--lxt-orange) 0%, var(--lxt-orange-dark) 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 50px !important;
+    padding: 0.6rem 2rem !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.3px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 15px rgba(254, 111, 56, 0.25) !important;
+}
+.stButton > button[kind="primary"]:hover,
+button[data-testid="stBaseButton-primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(254, 111, 56, 0.4) !important;
+    background: linear-gradient(135deg, var(--lxt-orange-light) 0%, var(--lxt-orange) 100%) !important;
+}
+.stButton > button[kind="primary"]:active,
+button[data-testid="stBaseButton-primary"]:active {
+    transform: translateY(0) !important;
+}
+
+/* Secondary / default buttons */
+.stButton > button[kind="secondary"],
+button[data-testid="stBaseButton-secondary"] {
+    border: 1.5px solid var(--lxt-teal) !important;
+    border-radius: 50px !important;
+    color: var(--lxt-teal-light) !important;
+    background: transparent !important;
+    transition: all 0.3s ease !important;
+    font-weight: 500 !important;
+}
+.stButton > button[kind="secondary"]:hover,
+button[data-testid="stBaseButton-secondary"]:hover {
+    background: rgba(94, 139, 149, 0.1) !important;
+    border-color: var(--lxt-orange) !important;
+    color: var(--lxt-orange) !important;
+}
+
+/* Download button */
+button[data-testid="stDownloadButton"] > button,
+.stDownloadButton > button {
+    background: linear-gradient(135deg, var(--lxt-orange) 0%, var(--lxt-orange-dark) 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 50px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 15px rgba(254, 111, 56, 0.25) !important;
+}
+.stDownloadButton > button:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 8px 25px rgba(254, 111, 56, 0.4) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Expanders                                             */
+/* ══════════════════════════════════════════════════════ */
+.streamlit-expanderHeader {
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    color: var(--lxt-white) !important;
+    transition: color 0.3s ease !important;
+}
+.streamlit-expanderHeader:hover {
+    color: var(--lxt-orange) !important;
+}
+/* Fix Material Icon text rendering as raw text in expander headers */
+span[data-testid="stIconMaterial"] {
+    font-size: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    display: none !important;
+}
+div[data-testid="stExpander"] {
+    border: 1px solid var(--lxt-border) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    background: var(--lxt-card-bg) !important;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease !important;
+    animation: fadeInUp 0.5s ease-out;
+}
+div[data-testid="stExpander"]:hover {
+    border-color: rgba(254, 111, 56, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(254, 111, 56, 0.08) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Metrics / KPI Cards                                   */
+/* ══════════════════════════════════════════════════════ */
+div[data-testid="stMetric"] {
+    background: var(--lxt-card-bg) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--lxt-border) !important;
+    border-radius: 14px !important;
+    padding: 1.2rem 1.5rem !important;
+    animation: fadeInUp 0.6s ease-out !important;
+    transition: all 0.3s ease !important;
+}
+div[data-testid="stMetric"]:hover {
+    border-color: var(--lxt-orange) !important;
+    box-shadow: 0 0 25px rgba(254, 111, 56, 0.12) !important;
+    transform: translateY(-3px);
+}
+div[data-testid="stMetric"] label {
+    color: var(--lxt-grey) !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+}
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: var(--lxt-orange) !important;
+    font-weight: 700 !important;
+    font-size: 1.8rem !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Data Tables                                           */
+/* ══════════════════════════════════════════════════════ */
+.stDataFrame {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  File Uploader                                         */
+/* ══════════════════════════════════════════════════════ */
+div[data-testid="stFileUploader"] {
+    animation: fadeInUp 0.5s ease-out;
+}
+div[data-testid="stFileUploader"] section {
+    border: 2px dashed var(--lxt-border) !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+div[data-testid="stFileUploader"] section:hover {
+    border-color: var(--lxt-orange) !important;
+    background: rgba(254, 111, 56, 0.03) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Progress Bar                                          */
+/* ══════════════════════════════════════════════════════ */
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, var(--lxt-orange), var(--lxt-orange-light)) !important;
+    border-radius: 10px !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Status Container                                      */
+/* ══════════════════════════════════════════════════════ */
+details[data-testid="stStatusWidget"] {
+    border: 1px solid var(--lxt-border) !important;
+    border-radius: 12px !important;
+    background: var(--lxt-card-bg) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Text Inputs                                           */
+/* ══════════════════════════════════════════════════════ */
+.stTextInput > div > div {
+    border-radius: 12px !important;
+    border-color: var(--lxt-border) !important;
+    transition: all 0.3s ease !important;
+}
+.stTextInput > div > div:focus-within {
+    border-color: var(--lxt-orange) !important;
+    box-shadow: 0 0 0 3px rgba(254, 111, 56, 0.15) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Date Input                                            */
+/* ══════════════════════════════════════════════════════ */
+.stDateInput > div > div {
+    border-radius: 12px !important;
+    border-color: var(--lxt-border) !important;
+    transition: all 0.3s ease !important;
+}
+.stDateInput > div > div:focus-within {
+    border-color: var(--lxt-orange) !important;
+    box-shadow: 0 0 0 3px rgba(254, 111, 56, 0.15) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Select Box / Number Input                             */
+/* ══════════════════════════════════════════════════════ */
+.stSelectbox > div > div,
+.stNumberInput > div > div {
+    border-radius: 12px !important;
+    border-color: var(--lxt-border) !important;
+    transition: all 0.3s ease !important;
+}
+.stSelectbox > div > div:focus-within,
+.stNumberInput > div > div:focus-within {
+    border-color: var(--lxt-orange) !important;
+    box-shadow: 0 0 0 3px rgba(254, 111, 56, 0.15) !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Alerts / Info / Success / Warning / Error              */
+/* ══════════════════════════════════════════════════════ */
+.stAlert {
+    border-radius: 12px !important;
+    animation: fadeInUp 0.4s ease-out;
+}
+div[data-testid="stAlert"] {
+    border-radius: 12px !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Custom Divider (gradient)                             */
+/* ══════════════════════════════════════════════════════ */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent 0%, var(--lxt-orange) 20%, var(--lxt-teal) 80%, transparent 100%) !important;
+    opacity: 0.4 !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Scrollbar                                             */
+/* ══════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--lxt-navy);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--lxt-teal);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--lxt-orange);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/*  Custom Classes                                        */
+/* ══════════════════════════════════════════════════════ */
+.lxt-login-card {
+    background: rgba(13, 27, 42, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(94, 139, 149, 0.25);
+    border-radius: 20px;
+    padding: 3rem 2.5rem;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.4),
+        0 0 40px rgba(254, 111, 56, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lxt-login-card:hover {
+    border-color: rgba(254, 111, 56, 0.3);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.4),
+        0 0 60px rgba(254, 111, 56, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.lxt-header {
+    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lxt-section {
+    animation: fadeInUp 0.5s ease-out;
+}
+.lxt-gradient-text {
+    background: linear-gradient(135deg, var(--lxt-orange) 0%, var(--lxt-teal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.lxt-badge {
+    display: inline-block;
+    background: rgba(254, 111, 56, 0.15);
+    color: var(--lxt-orange);
+    padding: 0.25rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.lxt-shimmer {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(254, 111, 56, 0.08) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+}
+</style>
+"""
+st.markdown(_LXT_CSS, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
 # Constants
@@ -131,45 +547,83 @@ def check_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
 
+    # Background pattern
     st.markdown(
         """
-        <div style="display:flex; justify-content:center; margin-top:8vh;">
-            <div style="
-                background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
-                border: 1px solid #3a3a5c;
-                border-radius: 16px;
-                padding: 3rem 2.5rem;
-                width: 400px;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            ">
-                <h2 style="text-align:center; margin-bottom:0.2rem; color:#fff;">
-                    🔐 LXT Reports
-                </h2>
-                <p style="text-align:center; color:#888; font-size:0.9rem; margin-bottom:2rem;">
-                    Enter your password to continue
-                </p>
+        <style>
+            .login-bg {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                z-index: -1;
+                background:
+                    radial-gradient(ellipse at 20% 50%, rgba(254,111,56,0.06) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 20%, rgba(94,139,149,0.06) 0%, transparent 50%),
+                    radial-gradient(ellipse at 50% 80%, rgba(254,111,56,0.04) 0%, transparent 50%);
+            }
+        </style>
+        <div class="login-bg"></div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    logo_html = ""
+    if _logo_b64:
+        logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="height:48px; margin-bottom:1.5rem;" alt="LXT Logo">'
+
+    st.markdown(
+        f"""
+        <div style="display:flex; justify-content:center; align-items:center; min-height:70vh;">
+            <div class="lxt-login-card">
+                <div style="text-align:center;">
+                    {logo_html}
+                    <div style="margin-top:0.8rem; margin-bottom:1.2rem;"><span class="lxt-badge">Financial Reports</span></div>
+                    <h2 style="
+                        margin: 0 0 0.3rem 0;
+                        font-size: 1.6rem;
+                        font-weight: 700;
+                        color: #F0F2F6;
+                        letter-spacing: -0.5px;
+                    ">Welcome Back</h2>
+                    <p style="
+                        color: #8899A6;
+                        font-size: 0.9rem;
+                        margin-bottom: 2rem;
+                        font-weight: 400;
+                    ">Enter your credentials to access the dashboard</p>
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2, col3 = st.columns([1.2, 1, 1.2])
     with col2:
+        username = st.text_input(
+            "Email",
+            placeholder="Enter your email…",
+            label_visibility="collapsed",
+        )
         password = st.text_input(
             "Password",
             type="password",
-            placeholder="Enter password…",
+            placeholder="Enter your password…",
             label_visibility="collapsed",
         )
         login_clicked = st.button("Login", width="stretch", type="primary")
 
         if login_clicked:
-            if password == st.secrets["APP_PASSWORD"]:
+            if not username.strip():
+                st.error("❌ Please enter your email.")
+            elif (
+                username.strip().lower() == st.secrets["APP_USERNAME"].lower()
+                and password == st.secrets["APP_PASSWORD"]
+            ):
                 st.session_state["authenticated"] = True
+                st.session_state["username"] = username.strip()
                 st.rerun()
             else:
-                st.error("❌ Incorrect password. Please try again.")
+                st.error("❌ Incorrect email or password. Please try again.")
 
     return False
 
@@ -1065,18 +1519,93 @@ def main_app():
 
     # ── Sidebar ───────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("### 👤 Admin")
-        st.caption("Logged in as **Admin**")
+        if _logo_b64:
+            st.markdown(
+                f"""
+                <div style="text-align:center; padding:1.2rem 0 0.8rem 0; animation: fadeInUp 0.5s ease-out;">
+                    <img src="data:image/png;base64,{_logo_b64}" style="height:36px;" alt="LXT">
+                    <div style="
+                        margin-top:0.6rem;
+                        font-size:0.65rem;
+                        font-weight:600;
+                        letter-spacing:2px;
+                        text-transform:uppercase;
+                        color:#5E8B95;
+                    ">FINANCIAL REPORTS</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.divider()
+        st.markdown(
+            f"""
+            <div style="animation: slideInLeft 0.4s ease-out;">
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:0.6rem;
+                    padding:0.6rem 0.8rem;
+                    background:rgba(94,139,149,0.08);
+                    border-radius:12px;
+                    margin-bottom:0.5rem;
+                ">
+                    <div style="
+                        width:36px;
+                        height:36px;
+                        border-radius:10px;
+                        background:linear-gradient(135deg, #FE6F38, #E5592A);
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:1rem;
+                        color:white;
+                        font-weight:700;
+                    ">A</div>
+                    <div>
+                        <div style="font-size:0.85rem; font-weight:600; color:#F0F2F6;">{st.session_state.get('username', 'Admin')}</div>
+                        <div style="font-size:0.7rem; color:#8899A6;">Administrator</div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.divider()
         if st.button("🚪 Logout", width="stretch"):
             st.session_state.clear()
             st.rerun()
 
     # ── Header ────────────────────────────────────────────────
-    st.title("📊 LXT Financial Consolidated Report")
+    header_logo = ""
+    if _logo_b64:
+        header_logo = f'<img src="data:image/png;base64,{_logo_b64}" style="height:42px;" alt="LXT">'
+
     st.markdown(
-        "Extract General Ledger data from **9 QuickBooks companies** "
-        "and download a single consolidated Excel report."
+        f"""
+        <div class="lxt-header" style="margin-bottom:0.5rem;">
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem;">
+                {header_logo}
+                <div>
+                    <h1 style="
+                        margin:0;
+                        font-size:2rem;
+                        font-weight:800;
+                        letter-spacing:-1px;
+                        color:#F0F2F6;
+                    ">Financial Consolidated Report</h1>
+                </div>
+            </div>
+            <p style="
+                color:#8899A6;
+                font-size:0.95rem;
+                margin:0.5rem 0 0 0;
+                max-width:700px;
+                line-height:1.5;
+            ">Extract General Ledger data from <strong style="color:#FE6F38;">9 QuickBooks companies</strong>
+               and download a single consolidated Excel report.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
     st.divider()
 
