@@ -437,6 +437,41 @@ hr {
     background-size: 200% 100%;
     animation: shimmer 3s ease-in-out infinite;
 }
+
+/* ══════════════════════════════════════════════════════ */
+/*  Chat Interface                                        */
+/* ══════════════════════════════════════════════════════ */
+.stChatMessage {
+    animation: fadeInUp 0.4s ease-out;
+    border-radius: 14px !important;
+    margin-bottom: 0.5rem !important;
+}
+div[data-testid="stChatInput"] {
+    border-radius: 50px !important;
+}
+div[data-testid="stChatInput"] textarea {
+    border-radius: 50px !important;
+    border-color: var(--lxt-border) !important;
+    transition: all 0.3s ease !important;
+    font-family: 'Inter', sans-serif !important;
+}
+div[data-testid="stChatInput"] textarea:focus {
+    border-color: var(--lxt-orange) !important;
+    box-shadow: 0 0 0 3px rgba(254, 111, 56, 0.15) !important;
+}
+.chat-header {
+    background: var(--lxt-card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--lxt-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    animation: fadeInUp 0.5s ease-out;
+}
+.chat-header:hover {
+    border-color: rgba(254, 111, 56, 0.3);
+    box-shadow: 0 4px 20px rgba(254, 111, 56, 0.08);
+}
 </style>
 """
 st.markdown(_LXT_CSS, unsafe_allow_html=True)
@@ -1380,6 +1415,15 @@ def build_pivot_report(
     display_cols = [c for c in all_columns if c in display_df.columns]
     display_df = display_df[display_cols]
 
+    # Cast value columns to string so Arrow doesn't choke on
+    # mixed numeric / percentage-string types (e.g. GP% rows).
+    value_cols = [c for c in display_cols if c not in ("Code", "Description")]
+    for vc in value_cols:
+        display_df[vc] = display_df[vc].apply(
+            lambda v: f"{v:,.2f}" if isinstance(v, (int, float)) and v == v else
+                      (str(v) if v is not None else "")
+        )
+
     return display_df, raw_rows, all_columns, section_groups
 
 
@@ -1829,9 +1873,451 @@ def main_app():
                 key="download_pivot_btn",
             )
 
+    # ═══════════════════════════════════════════════════════════════
+    # AI Financial Chatbot
+    # ═══════════════════════════════════════════════════════════════
+    if "master_df" in st.session_state:
+        st.divider()
+
+        # ── Chat Header ──
+        st.markdown(
+            """
+            <div class="chat-header">
+                <div style="display:flex; align-items:center; gap:0.8rem;">
+                    <div style="
+                        width:44px; height:44px;
+                        border-radius:12px;
+                        background: linear-gradient(135deg, #FE6F38, #E5592A);
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:1.4rem;
+                        box-shadow: 0 4px 15px rgba(254, 111, 56, 0.3);
+                    ">🤖</div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:#F0F2F6; letter-spacing:-0.3px;">
+                            AI Financial Assistant
+                        </h3>
+                        <p style="margin:0; font-size:0.8rem; color:#8899A6;">
+                            Ask questions about your consolidated data &amp; pivot report — powered by Google Gemini
+                        </p>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ── Initialize chat history ──
+        if "messages" not in st.session_state:
+            st.session_state["messages"] = [
+                {
+                    "role": "assistant",
+                    "content": (
+                        "👋 Hello! I'm your AI Financial Assistant. I can analyze "
+                        "your consolidated General Ledger and Pivot P&L data. \n\n"
+                        "Try asking me things like:\n"
+                        "- *What is the total debit for LXT Egypt?*\n"
+                        "- *Which company has the highest balance?*\n"
+                        "- *Show me a summary of all transactions by company.*\n"
+                        "- *What are the top 5 cost centers by total amount in USD?*"
+                    ),
+                }
+            ]
+
+        # ── Display existing chat messages ──
+        for msg in st.session_state["messages"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # ── Chat input ──
+        if prompt := st.chat_input(
+            "Ask a question about the financial data…"
+        ):
+            # Append and display user message
+            st.session_state["messages"].append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # ── Call Gemini directly ──
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing data…"):
+                    try:
+                        from google import genai
+                        from google.genai import types
+
+                        api_key = st.secrets.get("GOOGLE_API_KEY", "")
+                        if not api_key or api_key == "your_api_key_here":
+                            response = (
+                                "⚠️ **Google API Key not configured.** "
+                                "Please add your `GOOGLE_API_KEY` to "
+                                "`.streamlit/secrets.toml` to enable the AI assistant."
+                            )
+                        else:
+                            # Build / cache the data context
+                            if "financial_context" not in st.session_state:
+                                pivot_df = st.session_state.get("pivot_preview")
+                                st.session_state["financial_context"] = (
+                                    _build_financial_context(
+                                        st.session_state["master_df"], pivot_df
+                                    )
+                                )
+
+                            # Detect company in the question → append filtered detail
+                            extra_context = _detect_and_filter(
+                                prompt, st.session_state["master_df"]
+                            )
+
+                            system_prompt = (
+                                "You are a senior financial analyst assistant for LXT, a global company "
+                                "with operations in Egypt, Canada, Australia, Romania, India, Germany (CW GmbH), "
+                                "UK, and USA (including CW Inc).\n\n"
+                                "You have access to comprehensive financial data summaries below. "
+                                "Use this data to answer questions accurately.\n\n"
+                                "RULES:\n"
+                                "1. Always provide precise numbers from the data — never estimate or guess.\n"
+                                "2. Format numbers with commas and 2 decimal places (e.g., $1,234,567.89 USD).\n"
+                                "3. Default to USD as the reporting currency.\n"
+                                "4. Present answers in a clean, professional format suitable for finance executives.\n"
+                                "5. When comparing companies or periods, use markdown tables for clarity.\n"
+                                "6. If the data doesn't contain enough detail, say so explicitly.\n"
+                                "7. Keep answers concise but complete.\n\n"
+                                "FINANCIAL DATA:\n\n"
+                                + st.session_state["financial_context"]
+                                + extra_context
+                            )
+
+                            # Build multi-turn conversation (skip welcome message)
+                            contents = []
+                            for msg in st.session_state["messages"][1:]:
+                                role = "model" if msg["role"] == "assistant" else "user"
+                                contents.append(
+                                    types.Content(
+                                        role=role,
+                                        parts=[types.Part(text=msg["content"])],
+                                    )
+                                )
+
+                            client = genai.Client(api_key=api_key)
+                            result = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                config=types.GenerateContentConfig(
+                                    system_instruction=system_prompt,
+                                    temperature=0.1,
+                                ),
+                                contents=contents,
+                            )
+                            response = result.text
+
+                    except ImportError:
+                        response = (
+                            "⚠️ **Missing dependencies.** Please install:\n\n"
+                            "```\npip install google-genai\n```"
+                        )
+                    except Exception as exc:
+                        response = f"❌ **Error:** {exc}\n\nPlease try rephrasing your question."
+
+                st.markdown(response)
+                st.session_state["messages"].append(
+                    {"role": "assistant", "content": response}
+                )
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI — Smart Company Detection & Filtering
+# ═══════════════════════════════════════════════════════════════
+
+# Keyword → actual "Company Country" value in the DataFrame.
+# Multiple keywords can map to the same company.
+_COMPANY_KEYWORDS: dict[str, str] = {
+    "egypt": "LXT Egypt",
+    "lxt egypt": "LXT Egypt",
+    "canada": "LXT Canada",
+    "lxt canada": "LXT Canada",
+    "australia": "LXT Australia",
+    "lxt australia": "LXT Australia",
+    "romania": "LXT Romania",
+    "lxt romania": "LXT Romania",
+    "india": "LXT India",
+    "lxt india": "LXT India",
+    "germany": "CW GmbH",
+    "gmbh": "CW GmbH",
+    "cw gmbh": "CW GmbH",
+    "uk": "LXT UK",
+    "lxt uk": "LXT UK",
+    "united kingdom": "LXT UK",
+    "usa": "LXT USA",
+    "lxt usa": "LXT USA",
+    "cw inc": "CW Inc",
+    "clickworker": "CW Inc",
+}
+
+
+def _detect_and_filter(prompt: str, master_df: pd.DataFrame) -> str:
+    """
+    Detect company references in the user's question.
+    If exactly ONE company is mentioned, return a supplementary context
+    string with that company's filtered raw data.
+    Returns empty string if no single company is detected.
+    """
+    prompt_lower = prompt.lower()
+
+    # Find all matching companies (deduplicated)
+    matched: set[str] = set()
+    # Sort by key length descending so "lxt egypt" matches before "egypt"
+    for keyword in sorted(_COMPANY_KEYWORDS, key=len, reverse=True):
+        if keyword in prompt_lower:
+            matched.add(_COMPANY_KEYWORDS[keyword])
+
+    # Only filter when exactly one company is detected
+    if len(matched) != 1:
+        return ""
+
+    company = matched.pop()
+    filtered = master_df[master_df["Company Country"] == company]
+
+    if filtered.empty:
+        return ""
+
+    # Ensure numeric
+    df = filtered.copy()
+    for col in ["Debit", "Credit", "Balance", "Amount in USD (Reporting Currency)"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    num_cols = [
+        c for c in ["Debit", "Credit", "Amount in USD (Reporting Currency)"]
+        if c in df.columns
+    ]
+
+    ctx = []
+    sep = "─" * 50
+
+    ctx.append(f"\n{'═' * 60}")
+    ctx.append(f"DETAILED DATA FOR: {company}")
+    ctx.append("═" * 60)
+    ctx.append(f"Transactions: {len(df):,}")
+
+    # Per-month breakdown
+    ctx.append(f"\n{sep}")
+    ctx.append(f"{company} — BY MONTH")
+    ctx.append(df.groupby("Reporting Month")[num_cols].sum().round(2).to_string())
+
+    # Per-account breakdown
+    ctx.append(f"\n{sep}")
+    ctx.append(f"{company} — BY ACCOUNT")
+    ctx.append(df.groupby("Distribution account")[num_cols].sum().round(2).to_string())
+
+    # Per-cost-center
+    if "CostCenter" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append(f"{company} — BY COST CENTER")
+        ctx.append(df.groupby("CostCenter")[num_cols].sum().round(2).to_string())
+
+    # Per-mapping
+    if "Mapping" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append(f"{company} — BY MAPPING")
+        ctx.append(
+            df.groupby("Mapping")["Amount in USD (Reporting Currency)"]
+            .sum().round(2).to_string()
+        )
+
+    # Month × Account
+    ctx.append(f"\n{sep}")
+    ctx.append(f"{company} — BY MONTH × ACCOUNT")
+    ctx.append(
+        df.groupby(["Reporting Month", "Distribution account"])[num_cols]
+        .sum().round(2).to_string()
+    )
+
+    # Include raw data (filtered set is much smaller)
+    if len(df) <= 10000:
+        ctx.append(f"\n{sep}")
+        ctx.append(f"{company} — ALL TRANSACTIONS (CSV)")
+        ctx.append(df.to_csv(index=False))
+    else:
+        ctx.append(f"\n({company} has {len(df):,} rows — raw data omitted.)")
+
+    return "\n".join(ctx)
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI Context Builder
+# ═══════════════════════════════════════════════════════════════
+def _build_financial_context(
+    master_df: pd.DataFrame, pivot_df: pd.DataFrame | None = None
+) -> str:
+    """
+    Pre-aggregate financial data into a compact text summary.
+    This is passed as system context to Gemini so it can answer
+    questions directly — no code execution needed.
+    """
+    df = master_df.copy()
+
+    # Ensure numeric columns
+    for col in ["Debit", "Credit", "Balance", "Amount in USD (Reporting Currency)"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    num_cols = [
+        c for c in ["Debit", "Credit", "Amount in USD (Reporting Currency)"]
+        if c in df.columns
+    ]
+
+    ctx = []
+    sep = "─" * 50
+
+    ctx.append("═" * 60)
+    ctx.append("LXT CONSOLIDATED FINANCIAL DATA")
+    ctx.append("═" * 60)
+    ctx.append(f"Total transactions: {len(df):,}")
+
+    months = sorted(df["Reporting Month"].dropna().unique().tolist())
+    if months:
+        ctx.append(f"Reporting Months: {', '.join(str(m) for m in months)}")
+
+    companies = sorted(df["Company Country"].dropna().unique().tolist())
+    ctx.append(f"Companies ({len(companies)}): {', '.join(companies)}")
+
+    # Grand totals
+    ctx.append(f"\n{sep}")
+    ctx.append("GRAND TOTALS")
+    for col in num_cols:
+        ctx.append(f"  {col}: ${df[col].sum():,.2f}")
+
+    # By Company
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY COMPANY")
+    ctx.append(df.groupby("Company Country")[num_cols].sum().round(2).to_string())
+
+    # By Reporting Month
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY REPORTING MONTH")
+    ctx.append(df.groupby("Reporting Month")[num_cols].sum().round(2).to_string())
+
+    # By Company × Month
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY COMPANY × MONTH")
+    ctx.append(
+        df.groupby(["Company Country", "Reporting Month"])[num_cols]
+        .sum().round(2).to_string()
+    )
+
+    # By Distribution Account
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY DISTRIBUTION ACCOUNT")
+    ctx.append(df.groupby("Distribution account")[num_cols].sum().round(2).to_string())
+
+    # By CostCenter
+    if "CostCenter" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append("TOTALS BY COST CENTER")
+        ctx.append(df.groupby("CostCenter")[num_cols].sum().round(2).to_string())
+
+    # By Statement
+    if "Statement" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append("TOTALS BY STATEMENT")
+        ctx.append(
+            df.groupby("Statement")["Amount in USD (Reporting Currency)"]
+            .sum().round(2).to_string()
+        )
+
+    # By Mapping
+    if "Mapping" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append("TOTALS BY MAPPING")
+        ctx.append(
+            df.groupby("Mapping")["Amount in USD (Reporting Currency)"]
+            .sum().round(2).to_string()
+        )
+
+    # Company × Account
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY COMPANY × ACCOUNT")
+    ctx.append(
+        df.groupby(["Company Country", "Distribution account"])[num_cols]
+        .sum().round(2).to_string()
+    )
+
+    # Company × CostCenter
+    if "CostCenter" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append("TOTALS BY COMPANY × COST CENTER")
+        ctx.append(
+            df.groupby(["Company Country", "CostCenter"])[num_cols]
+            .sum().round(2).to_string()
+        )
+
+    # Month × Account
+    ctx.append(f"\n{sep}")
+    ctx.append("TOTALS BY MONTH × ACCOUNT")
+    ctx.append(
+        df.groupby(["Reporting Month", "Distribution account"])[num_cols]
+        .sum().round(2).to_string()
+    )
+
+    # Top Suppliers
+    if "Supplier" in df.columns:
+        sup = df[df["Supplier"].notna() & (df["Supplier"].astype(str).str.strip() != "")]
+        if len(sup) > 0:
+            ctx.append(f"\n{sep}")
+            ctx.append("TOP 30 SUPPLIERS BY AMOUNT IN USD")
+            top_sup = (
+                sup.groupby("Supplier")["Amount in USD (Reporting Currency)"]
+                .sum().round(2).sort_values(ascending=False).head(30)
+            )
+            ctx.append(top_sup.to_string())
+
+    # Top Customers
+    if "Customer full name" in df.columns:
+        cust = df[
+            df["Customer full name"].notna()
+            & (df["Customer full name"].astype(str).str.strip() != "")
+        ]
+        if len(cust) > 0:
+            ctx.append(f"\n{sep}")
+            ctx.append("TOP 30 CUSTOMERS BY AMOUNT IN USD")
+            top_cust = (
+                cust.groupby("Customer full name")[
+                    "Amount in USD (Reporting Currency)"
+                ]
+                .sum().round(2).sort_values(ascending=False).head(30)
+            )
+            ctx.append(top_cust.to_string())
+
+    # Currency breakdown
+    if "Currency" in df.columns:
+        ctx.append(f"\n{sep}")
+        ctx.append("TOTALS BY CURRENCY")
+        ctx.append(df.groupby("Currency")[num_cols].sum().round(2).to_string())
+
+    # Raw data for smaller datasets (allows answering ad-hoc questions)
+    if len(df) <= 3000:
+        ctx.append(f"\n{sep}")
+        ctx.append("FULL RAW DATA (CSV)")
+        ctx.append(df.to_csv(index=False))
+    else:
+        ctx.append(
+            f"\n(Dataset has {len(df):,} rows — raw data omitted. "
+            "Summaries above cover all key aggregations.)"
+        )
+
+    # Pivot P&L
+    if pivot_df is not None and len(pivot_df) > 0:
+        ctx.append(f"\n{'═' * 60}")
+        ctx.append("PIVOT P&L REPORT")
+        ctx.append("═" * 60)
+        ctx.append(pivot_df.to_string(index=False))
+
+    return "\n".join(ctx)
+
 
 def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.DataFrame):
     """Execute the full ETL pipeline with progress UI."""
+
+    # Clear cached AI context so it rebuilds with new data
+    st.session_state.pop("financial_context", None)
+    st.session_state.pop("messages", None)
 
     # Load credentials from secrets
     client_id = st.secrets["QB_CLIENT_ID"]
