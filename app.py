@@ -1957,9 +1957,14 @@ def main_app():
                             # Build / cache the data context
                             if "financial_context" not in st.session_state:
                                 pivot_df = st.session_state.get("pivot_preview")
+                                forex = st.session_state.get("forex_rates", {})
+                                mapping = st.session_state.get("mapping_df", pd.DataFrame())
                                 st.session_state["financial_context"] = (
                                     _build_financial_context(
-                                        st.session_state["master_df"], pivot_df
+                                        st.session_state["master_df"],
+                                        pivot_df,
+                                        forex,
+                                        mapping,
                                     )
                                 )
 
@@ -2153,7 +2158,10 @@ def _detect_and_filter(prompt: str, master_df: pd.DataFrame) -> str:
 # AI Context Builder
 # ═══════════════════════════════════════════════════════════════
 def _build_financial_context(
-    master_df: pd.DataFrame, pivot_df: pd.DataFrame | None = None
+    master_df: pd.DataFrame,
+    pivot_df: pd.DataFrame | None = None,
+    forex_rates: dict | None = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> str:
     """
     Pre-aggregate financial data into a compact text summary.
@@ -2319,7 +2327,41 @@ def _build_financial_context(
             "Summaries above cover all key aggregations.)"
         )
 
-    # Pivot P&L
+    # ── Exchange Rates ──
+    if forex_rates:
+        ctx.append(f"\n{'═' * 60}")
+        ctx.append("EXCHANGE RATES (vs USD)")
+        ctx.append("═" * 60)
+        ctx.append("Each currency shows Closing Rate (for Balance Sheet items) "
+                   "and Average Rate (for P&L items) per month.")
+        ctx.append(f"Company → Currency: {', '.join(f'{k}: {v}' for k, v in COMPANY_CURRENCY.items())}")
+        ctx.append("")
+        for ccy in sorted(forex_rates.keys()):
+            if ccy == "USD":
+                continue
+            ctx.append(f"  {ccy}:")
+            months_data = forex_rates[ccy]
+            for mk in sorted(months_data.keys()):
+                rates = months_data[mk]
+                ctx.append(
+                    f"    {mk}: Closing = {rates['closing']:.6f}, "
+                    f"Average = {rates['average']:.6f}"
+                )
+        ctx.append("  USD: All rates = 1.000000 (reporting currency)")
+
+    # ── Account Mapping Reference ──
+    if mapping_df is not None and not mapping_df.empty:
+        ctx.append(f"\n{'═' * 60}")
+        ctx.append("ACCOUNT MAPPING REFERENCE")
+        ctx.append("═" * 60)
+        ctx.append("This table shows how each Account Number is classified:")
+        ctx.append("  - Mapping: the P&L or B/S category (e.g., Revenue, COGS, SG&A)")
+        ctx.append("  - Item: whether it's P&L or Balance Sheet")
+        ctx.append("  - Statement: the financial statement grouping")
+        ctx.append("")
+        ctx.append(mapping_df.to_string(index=False))
+
+    # ── Pivot P&L ──
     if pivot_df is not None and len(pivot_df) > 0:
         ctx.append(f"\n{'═' * 60}")
         ctx.append("PIVOT P&L REPORT")
@@ -2496,6 +2538,10 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
 
     # Store master_df for pivot report generation
     st.session_state["master_df"] = master_df
+
+    # Store forex rates and mapping for AI context
+    st.session_state["forex_rates"] = forex_rates
+    st.session_state["mapping_df"] = mapping_df
 
 
 # ═══════════════════════════════════════════════════════════════
