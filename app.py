@@ -1914,11 +1914,13 @@ def main_app():
                     "content": (
                         "👋 Hello! I'm your AI Financial Assistant. I can analyze "
                         "your consolidated General Ledger and Pivot P&L data. \n\n"
-                        "Try asking me things like:\n"
-                        "- *What is the total debit for LXT Egypt?*\n"
-                        "- *Which company has the highest balance?*\n"
-                        "- *Show me a summary of all transactions by company.*\n"
-                        "- *What are the top 5 cost centers by total amount in USD?*"
+                        "Here are some example questions:\n"
+                        "- *What is the total revenue and expenses for each company?*\n"
+                        "- *Break down LXT Egypt's debits and credits by month*\n"
+                        "- *Which cost center has the highest spending in USD?*\n"
+                        "- *Who are the top 10 suppliers by total amount?*\n"
+                        "- *Compare the P&L performance across all entities*\n"
+                        "- *What is the total Amount in USD by mapping category?*"
                     ),
                 }
             ]
