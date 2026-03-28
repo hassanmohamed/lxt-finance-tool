@@ -2085,6 +2085,13 @@ def _detect_and_filter(prompt: str, master_df: pd.DataFrame) -> str:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
+    # Replace blanks
+    for col in ["CostCenter", "Supplier", "Customer full name", "Mapping",
+                "Distribution account", "Statement"]:
+        if col in df.columns:
+            df[col] = df[col].fillna("").astype(str).str.strip()
+            df[col] = df[col].replace("", "Unassigned")
+
     num_cols = [
         c for c in ["Debit", "Credit", "Amount in USD (Reporting Currency)"]
         if c in df.columns
@@ -2159,6 +2166,14 @@ def _build_financial_context(
     for col in ["Debit", "Credit", "Balance", "Amount in USD (Reporting Currency)"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    # Replace blank / NaN values in key groupby columns so the AI
+    # doesn't see a mysterious "blank" entry as the largest group.
+    for col in ["CostCenter", "Supplier", "Customer full name", "Mapping",
+                "Distribution account", "Statement"]:
+        if col in df.columns:
+            df[col] = df[col].fillna("").astype(str).str.strip()
+            df[col] = df[col].replace("", "Unassigned")
 
     num_cols = [
         c for c in ["Debit", "Credit", "Amount in USD (Reporting Currency)"]
