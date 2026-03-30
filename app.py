@@ -1977,16 +1977,30 @@ def main_app():
                                 "You are a senior financial analyst assistant for LXT, a global company "
                                 "with operations in Egypt, Canada, Australia, Romania, India, Germany (CW GmbH), "
                                 "UK, and USA (including CW Inc).\n\n"
-                                "You have access to comprehensive financial data summaries below. "
-                                "Use this data to answer questions accurately.\n\n"
-                                "RULES:\n"
-                                "1. Always provide precise numbers from the data — never estimate or guess.\n"
-                                "2. Format numbers with commas and 2 decimal places (e.g., $1,234,567.89 USD).\n"
-                                "3. Default to USD as the reporting currency.\n"
-                                "4. Present answers in a clean, professional format suitable for finance executives.\n"
-                                "5. When comparing companies or periods, use markdown tables for clarity.\n"
-                                "6. If the data doesn't contain enough detail, say so explicitly.\n"
-                                "7. Keep answers concise but complete.\n\n"
+                                "You have access to the COMPLETE consolidated General Ledger data, "
+                                "exchange rates, account mapping, and Pivot P&L report below. "
+                                "Use ONLY this data to answer questions — never estimate, guess, or use external sources.\n\n"
+                                "STRICT RULES:\n"
+                                "1. EXCHANGE RATES: You must ONLY use the exchange rates provided in the "
+                                "   data below. NEVER use any other exchange rate from your training data "
+                                "   or external knowledge. If a rate is not in the provided data, say so.\n"
+                                "2. NEGATIVE EXPENSES: In the General Ledger, expenses (COGS, SG&A, etc.) "
+                                "   appear as NEGATIVE amounts. The negative sign is for accounting convention only. "
+                                "   When calculating Gross Profit = Revenue - COGS, use the ABSOLUTE value of COGS. "
+                                "   Example: Revenue = 100,000, COGS = -60,000 → Gross Profit = 100,000 - 60,000 = 40,000 "
+                                "   (subtract the absolute value, do NOT add the negative).\n"
+                                "3. P&L CALCULATIONS:\n"
+                                "   - Gross Profit = Revenue - |COGS| (absolute value of COGS)\n"
+                                "   - Gross Profit % = Gross Profit / Revenue × 100\n"
+                                "   - Net Income = Revenue - |COGS| - |Operating Expenses|\n"
+                                "   - All P&L items use the AVERAGE exchange rate for the month\n"
+                                "   - All Balance Sheet items use the CLOSING exchange rate for the month\n"
+                                "4. FORMAT: Numbers with commas and 2 decimal places (e.g., $1,234,567.89 USD).\n"
+                                "5. Default to USD as the reporting currency.\n"
+                                "6. Present answers in a clean, professional format suitable for finance executives.\n"
+                                "7. When comparing companies or periods, use markdown tables for clarity.\n"
+                                "8. If the data doesn't contain enough detail to answer, say so explicitly.\n"
+                                "9. Keep answers concise but complete.\n\n"
                                 "FINANCIAL DATA:\n\n"
                                 + st.session_state["financial_context"]
                                 + extra_context
@@ -2316,16 +2330,11 @@ def _build_financial_context(
         ctx.append("TOTALS BY CURRENCY")
         ctx.append(df.groupby("Currency")[num_cols].sum().round(2).to_string())
 
-    # Raw data for smaller datasets (allows answering ad-hoc questions)
-    if len(df) <= 3000:
-        ctx.append(f"\n{sep}")
-        ctx.append("FULL RAW DATA (CSV)")
-        ctx.append(df.to_csv(index=False))
-    else:
-        ctx.append(
-            f"\n(Dataset has {len(df):,} rows — raw data omitted. "
-            "Summaries above cover all key aggregations.)"
-        )
+    # Full raw General Ledger data (CSV) — enables answering any detailed question
+    ctx.append(f"\n{sep}")
+    ctx.append("FULL GENERAL LEDGER DATA (CSV)")
+    ctx.append(f"Total rows: {len(df):,}")
+    ctx.append(df.to_csv(index=False))
 
     # ── Exchange Rates ──
     if forex_rates:
