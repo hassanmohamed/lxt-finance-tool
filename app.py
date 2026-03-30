@@ -472,7 +472,64 @@ div[data-testid="stChatInput"] textarea:focus {
     border-color: rgba(254, 111, 56, 0.3);
     box-shadow: 0 4px 20px rgba(254, 111, 56, 0.08);
 }
+
+/* ══════════════════════════════════════════════════════ */
+/*  Financial Dashboard                                   */
+/* ══════════════════════════════════════════════════════ */
+.kpi-card {
+    background: var(--lxt-card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--lxt-border);
+    border-radius: 16px;
+    padding: 1.4rem 1.6rem;
+    text-align: center;
+    animation: fadeInUp 0.5s ease-out;
+    transition: all 0.3s ease;
+}
+.kpi-card:hover {
+    border-color: rgba(254, 111, 56, 0.3);
+    box-shadow: 0 8px 30px rgba(254, 111, 56, 0.1);
+    transform: translateY(-2px);
+}
+.kpi-label {
+    font-size: 0.75rem;
+    color: #8899A6;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+.kpi-value {
+    font-size: clamp(0.95rem, 1.4vw, 1.4rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-value.positive { color: #00C9A7; }
+.kpi-value.negative { color: #FF6B6B; }
+.kpi-value.neutral  { color: #F0F2F6; }
+.kpi-value.accent   { color: #FE6F38; }
+.kpi-sub {
+    font-size: 0.7rem;
+    color: #5A6C7D;
+    margin-top: 0.3rem;
+}
+.dashboard-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #F0F2F6;
+    letter-spacing: -0.3px;
+    margin: 1.2rem 0 0.6rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 </style>
+
 """
 st.markdown(_LXT_CSS, unsafe_allow_html=True)
 
@@ -1773,83 +1830,60 @@ def main_app():
             key="download_report_btn",
         )
 
-    # ── Pivot P&L Report Section ─────────────────────────────
+    # ── Pivot P&L Report Section (auto-generated) ──────────────
     if "master_df" in st.session_state:
         st.divider()
         st.subheader("📈 Pivot P&L Report")
-        st.markdown(
-            "Generate a pivot report grouped by **Statement → Mapping**, "
-            "across **3 consecutive months** with variance, split by "
-            "**Legal Entity** and **CostCenter**."
-        )
 
-        p_col1, p_col2 = st.columns([1, 1])
-        with p_col1:
-            pivot_month = st.selectbox(
-                "📅 Latest Month",
-                options=list(range(1, 13)),
-                format_func=lambda m: [
-                    "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                ][m - 1],
-                index=0,
-                key="pivot_month",
-            )
-        with p_col2:
-            pivot_year = st.number_input(
-                "📅 Year",
-                min_value=2020,
-                max_value=2030,
-                value=2026,
-                step=1,
-                key="pivot_year",
-            )
+        # Auto-detect latest month from the data
+        if "pivot_data" not in st.session_state:
+            import calendar as _cal_auto
+            mdf = st.session_state["master_df"]
+            reporting_months = mdf["Reporting Month"].dropna().unique().tolist()
 
-        # Show which 3 months will be used
-        import calendar
-        months_preview = _prev_months(int(pivot_year), int(pivot_month), 3)
-        months_str = ", ".join(
-            f"{calendar.month_abbr[m]} {y}" for y, m in months_preview
-        )
-        st.caption(f"Report months: **{months_str}**")
+            # Parse month keys like "1'2026" → (year, month)
+            parsed_months = []
+            for mk in reporting_months:
+                try:
+                    parts = str(mk).split("'")
+                    m, y = int(parts[0]), int(parts[1])
+                    parsed_months.append((y, m))
+                except (ValueError, IndexError):
+                    continue
 
-        gen_pivot = st.button(
-            "📈 Generate Pivot Report",
-            type="primary",
-            key="gen_pivot_btn",
-        )
-
-        if gen_pivot:
-            with st.spinner("Building pivot report…"):
-                display_df, raw_rows, all_columns, section_groups = build_pivot_report(
-                    st.session_state["master_df"],
-                    int(pivot_year),
-                    int(pivot_month),
-                )
-                # Get month labels for Excel sub-headers
-                import calendar as _cal
-                _m_tuples = _prev_months(int(pivot_year), int(pivot_month), 3)
-                _m_labels = [_cal.month_abbr[m] + f" {y}" for y, m in _m_tuples]
-
-                pivot_xlsx = pivot_to_excel_bytes(
-                    raw_rows, all_columns, section_groups, _m_labels
+            if len(parsed_months) < 3:
+                st.warning(
+                    f"⚠️ Only **{len(parsed_months)} month(s)** of data available "
+                    f"({', '.join(str(mk) for mk in reporting_months)}). "
+                    f"The Pivot P&L requires **3 consecutive months** for variance analysis. "
+                    f"Some columns may show zero values."
                 )
 
-                m_labels = [
-                    _cal.month_abbr[m] + f"{y}"
-                    for y, m in months_preview
-                ]
-                pivot_fname = f"LXT_Pivot_PL_{m_labels[0]}_to_{m_labels[2]}.xlsx"
+            if parsed_months:
+                # Use the latest month
+                latest = max(parsed_months, key=lambda t: (t[0], t[1]))
+                pivot_year, pivot_month = latest
 
-                st.session_state["pivot_data"] = pivot_xlsx
-                st.session_state["pivot_name"] = pivot_fname
-                st.session_state["pivot_preview"] = display_df
-                st.session_state["pivot_rows"] = len(display_df)
+                with st.spinner("Building pivot report…"):
+                    display_df, raw_rows, all_columns, section_groups = build_pivot_report(
+                        mdf, pivot_year, pivot_month,
+                    )
+                    _m_tuples = _prev_months(pivot_year, pivot_month, 3)
+                    _m_labels = [_cal_auto.month_abbr[m] + f" {y}" for y, m in _m_tuples]
+
+                    pivot_xlsx = pivot_to_excel_bytes(
+                        raw_rows, all_columns, section_groups, _m_labels
+                    )
+                    m_labels = [_cal_auto.month_abbr[m] + f"{y}" for y, m in _m_tuples]
+                    pivot_fname = f"LXT_Pivot_PL_{m_labels[0]}_to_{m_labels[2]}.xlsx"
+
+                    st.session_state["pivot_data"] = pivot_xlsx
+                    st.session_state["pivot_name"] = pivot_fname
+                    st.session_state["pivot_preview"] = display_df
+                    st.session_state["pivot_rows"] = len(display_df)
 
         # Show persisted pivot results
         if "pivot_data" in st.session_state:
-            st.divider()
-
             col1, col2 = st.columns(2)
             col1.metric("Pivot Rows", f"{st.session_state['pivot_rows']:,}")
             col2.metric("File", st.session_state["pivot_name"])
@@ -1872,6 +1906,15 @@ def main_app():
                 type="primary",
                 key="download_pivot_btn",
             )
+
+    # ═══════════════════════════════════════════════════════════════
+    # Financial Analytics Dashboard
+    # ═══════════════════════════════════════════════════════════════
+    if "master_df" in st.session_state:
+        st.divider()
+        st.subheader("📊 Financial Analytics Dashboard")
+        _render_financial_dashboard(st.session_state["master_df"])
+
 
     # ═══════════════════════════════════════════════════════════════
     # AI Financial Chatbot
@@ -2157,13 +2200,14 @@ def _detect_and_filter(prompt: str, master_df: pd.DataFrame) -> str:
         .sum().round(2).to_string()
     )
 
-    # Include raw data (filtered set is much smaller)
-    if len(df) <= 10000:
+    # Include raw data (capped to stay within token limits)
+    MAX_COMPANY_ROWS = 500
+    if len(df) <= MAX_COMPANY_ROWS:
         ctx.append(f"\n{sep}")
         ctx.append(f"{company} — ALL TRANSACTIONS (CSV)")
         ctx.append(df.to_csv(index=False))
     else:
-        ctx.append(f"\n({company} has {len(df):,} rows — raw data omitted.)")
+        ctx.append(f"\n({company} has {len(df):,} rows — use the aggregated summaries above for totals.)")
 
     return "\n".join(ctx)
 
@@ -2330,11 +2374,18 @@ def _build_financial_context(
         ctx.append("TOTALS BY CURRENCY")
         ctx.append(df.groupby("Currency")[num_cols].sum().round(2).to_string())
 
-    # Full raw General Ledger data (CSV) — enables answering any detailed question
+    # Sample of raw General Ledger data (capped to stay within token limits)
+    MAX_RAW_ROWS = 500
     ctx.append(f"\n{sep}")
-    ctx.append("FULL GENERAL LEDGER DATA (CSV)")
-    ctx.append(f"Total rows: {len(df):,}")
-    ctx.append(df.to_csv(index=False))
+    if len(df) <= MAX_RAW_ROWS:
+        ctx.append(f"FULL GENERAL LEDGER DATA (CSV) — {len(df):,} rows")
+        ctx.append(df.to_csv(index=False))
+    else:
+        ctx.append(
+            f"GENERAL LEDGER SAMPLE ({MAX_RAW_ROWS} of {len(df):,} rows) "
+            f"— use the pre-aggregated summaries above for accurate totals"
+        )
+        ctx.append(df.sample(n=MAX_RAW_ROWS, random_state=42).to_csv(index=False))
 
     # ── Exchange Rates ──
     if forex_rates:
@@ -2378,6 +2429,304 @@ def _build_financial_context(
         ctx.append(pivot_df.to_string(index=False))
 
     return "\n".join(ctx)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Financial Dashboard
+# ═══════════════════════════════════════════════════════════════
+def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
+    """Render an interactive financial analytics dashboard with Plotly charts."""
+    import plotly.graph_objects as go
+    import plotly.express as px
+
+    df = master_df.copy()
+
+    # Ensure numeric
+    for col in ["Debit", "Credit", "Amount in USD (Reporting Currency)"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    pl = df[df["Item"].astype(str).str.strip().str.upper() == "P&L"]
+
+    # ── Color palette (LXT brand) ──
+    ORANGE = "#FE6F38"
+    CORAL = "#E5592A"
+    TEAL = "#00C9A7"
+    RED = "#FF6B6B"
+    BLUE = "#4ECDC4"
+    PURPLE = "#A78BFA"
+    AMBER = "#F59E0B"
+    PINK = "#EC4899"
+    LIGHT_BLUE = "#60A5FA"
+    GRAY = "#64748B"
+
+    chart_colors = [ORANGE, TEAL, BLUE, PURPLE, AMBER, PINK, CORAL, LIGHT_BLUE, RED, GRAY]
+
+    # ── Plotly dark layout template ──
+    dark_layout = dict(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", color="#C8D1DB", size=12),
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            bordercolor="rgba(255,255,255,0.05)",
+            font=dict(size=11),
+        ),
+        xaxis=dict(
+            gridcolor="rgba(255,255,255,0.04)",
+            zerolinecolor="rgba(255,255,255,0.06)",
+        ),
+        yaxis=dict(
+            gridcolor="rgba(255,255,255,0.04)",
+            zerolinecolor="rgba(255,255,255,0.06)",
+        ),
+    )
+
+    # ── Classification helper ──
+    def _classify(statement: str) -> str:
+        s = str(statement).strip().lower()
+        if "revenue" in s:
+            return "Revenue"
+        elif any(k in s for k in ["cops", "direct cost", "inter-company cops"]):
+            return "COPS"
+        else:
+            return "Expenses"
+
+    pl = pl.copy()
+    pl["_category"] = pl["Statement"].apply(_classify)
+    amt_col = "Amount in USD (Reporting Currency)"
+
+    # ── Compute KPIs ──
+    total_revenue = pl[pl["_category"] == "Revenue"][amt_col].sum()
+    total_cops = abs(pl[pl["_category"] == "COPS"][amt_col].sum())
+    total_expenses = abs(pl[pl["_category"] == "Expenses"][amt_col].sum())
+    gross_profit = total_revenue - total_cops
+    gp_pct = (gross_profit / total_revenue * 100) if total_revenue != 0 else 0
+    net_income = total_revenue - total_cops - total_expenses
+
+    # ── KPI Cards ──
+    def _kpi_html(label: str, value: str, css_class: str, sub: str = "") -> str:
+        sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ""
+        return (
+            f'<div class="kpi-card">'
+            f'<div class="kpi-label">{label}</div>'
+            f'<div class="kpi-value {css_class}">{value}</div>'
+            f'{sub_html}</div>'
+        )
+
+    # Row 1 of KPIs
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        st.markdown(_kpi_html("Total Revenue", f"${total_revenue:,.0f}", "positive"), unsafe_allow_html=True)
+    with k2:
+        st.markdown(_kpi_html("Cost of Services", f"${total_cops:,.0f}", "negative"), unsafe_allow_html=True)
+    with k3:
+        st.markdown(_kpi_html("Gross Profit", f"${gross_profit:,.0f}", "positive" if gross_profit > 0 else "negative"), unsafe_allow_html=True)
+
+    # Row 2 of KPIs
+    k4, k5, k6 = st.columns(3)
+    with k4:
+        st.markdown(_kpi_html("GP %", f"{gp_pct:.1f}%", "accent"), unsafe_allow_html=True)
+    with k5:
+        st.markdown(_kpi_html("Operating Expenses", f"${total_expenses:,.0f}", "negative"), unsafe_allow_html=True)
+    with k6:
+        st.markdown(_kpi_html("Net Income", f"${net_income:,.0f}", "positive" if net_income > 0 else "negative"), unsafe_allow_html=True)
+
+    # ═══════════════════════════════════════════════════
+    # Row 1: Revenue by Company + Monthly P&L
+    # ═══════════════════════════════════════════════════
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.markdown('<div class="dashboard-section-title">💰 Revenue by Entity</div>', unsafe_allow_html=True)
+        rev_by_company = (
+            pl[pl["_category"] == "Revenue"]
+            .groupby("Company Country")[amt_col]
+            .sum().round(2)
+            .sort_values(ascending=True)
+        )
+        fig1 = go.Figure(go.Bar(
+            x=rev_by_company.values,
+            y=rev_by_company.index,
+            orientation="h",
+            marker=dict(
+                color=rev_by_company.values,
+                colorscale=[[0, CORAL], [0.5, ORANGE], [1, TEAL]],
+                line=dict(width=0),
+                cornerradius=4,
+            ),
+            text=[f"${v:,.0f}" for v in rev_by_company.values],
+            textposition="auto",
+            textfont=dict(size=11, color="white"),
+        ))
+        fig1.update_layout(**dark_layout, height=350, title=None, showlegend=False)
+        fig1.update_xaxes(title="Amount in USD")
+        st.plotly_chart(fig1, use_container_width=True)
+
+    with c2:
+        st.markdown('<div class="dashboard-section-title">📊 Monthly P&L Breakdown</div>', unsafe_allow_html=True)
+        # Sort months chronologically
+        import calendar as _cal
+        month_order = sorted(pl["Reporting Month"].dropna().unique().tolist())
+        monthly = (
+            pl.groupby(["Reporting Month", "_category"])[amt_col]
+            .sum().round(2)
+            .reset_index()
+        )
+        # Make COPS and Expenses positive for visual comparison
+        monthly["_display_amt"] = monthly.apply(
+            lambda r: abs(r[amt_col]) if r["_category"] != "Revenue" else r[amt_col], axis=1
+        )
+        cat_colors = {"Revenue": TEAL, "COPS": ORANGE, "Expenses": RED}
+        fig2 = go.Figure()
+        for cat in ["Revenue", "COPS", "Expenses"]:
+            cat_data = monthly[monthly["_category"] == cat]
+            fig2.add_trace(go.Bar(
+                x=cat_data["Reporting Month"],
+                y=cat_data["_display_amt"],
+                name=cat,
+                marker_color=cat_colors[cat],
+                marker_cornerradius=4,
+                text=[f"${v:,.0f}" for v in cat_data["_display_amt"]],
+                textposition="outside",
+                textfont=dict(size=10),
+            ))
+        fig2.update_layout(**dark_layout, height=350, barmode="group")
+        fig2.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
+        fig2.update_yaxes(title="Amount in USD")
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # ═══════════════════════════════════════════════════
+    # Row 2: Expense Breakdown + Cost Center Analysis
+    # ═══════════════════════════════════════════════════
+    c3, c4 = st.columns(2)
+
+    with c3:
+        st.markdown('<div class="dashboard-section-title">🍩 Expense Breakdown by Category</div>', unsafe_allow_html=True)
+        expenses = pl[pl["_category"] == "Expenses"].copy()
+        exp_by_stmt = (
+            expenses.groupby("Statement")[amt_col]
+            .sum().abs().round(2)
+            .sort_values(ascending=False)
+        )
+        # Top 8 + Other
+        if len(exp_by_stmt) > 8:
+            top_8 = exp_by_stmt.head(8)
+            other = pd.Series({"Other": exp_by_stmt.iloc[8:].sum()})
+            exp_by_stmt = pd.concat([top_8, other])
+
+        fig3 = go.Figure(go.Pie(
+            labels=exp_by_stmt.index,
+            values=exp_by_stmt.values,
+            hole=0.55,
+            marker=dict(colors=chart_colors[:len(exp_by_stmt)]),
+            textinfo="percent",
+            textfont=dict(size=11, color="white"),
+            hovertemplate="%{label}<br>$%{value:,.2f}<br>%{percent}<extra></extra>",
+        ))
+        fig3.update_layout(**dark_layout, height=380, showlegend=True)
+        fig3.update_layout(
+            legend=dict(font=dict(size=10), x=0, y=-0.15, orientation="h"),
+        )
+        # Add center annotation
+        fig3.add_annotation(
+            text=f"<b>${exp_by_stmt.sum():,.0f}</b><br><span style='font-size:10px;color:#8899A6'>Total Expenses</span>",
+            showarrow=False, font=dict(size=14, color="#F0F2F6"),
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+    with c4:
+        st.markdown('<div class="dashboard-section-title">🏢 Cost Center Analysis</div>', unsafe_allow_html=True)
+        cc_data = pl[pl["CostCenter"].notna() & (pl["CostCenter"].astype(str).str.strip() != "")]
+        if len(cc_data) > 0:
+            cc_summary = (
+                cc_data.groupby("CostCenter")
+                .agg(
+                    Revenue=(amt_col, lambda x: x[cc_data.loc[x.index, "_category"] == "Revenue"].sum()),
+                    Expenses=(amt_col, lambda x: abs(x[cc_data.loc[x.index, "_category"] != "Revenue"].sum())),
+                )
+                .round(2)
+            )
+            # Simpler approach: just total by cost center
+            cc_totals = (
+                cc_data.groupby("CostCenter")[amt_col]
+                .sum().round(2)
+                .sort_values(ascending=True)
+            )
+            colors = [TEAL if v > 0 else RED for v in cc_totals.values]
+            fig4 = go.Figure(go.Bar(
+                x=cc_totals.values,
+                y=cc_totals.index,
+                orientation="h",
+                marker=dict(color=colors, cornerradius=4),
+                text=[f"${v:,.0f}" for v in cc_totals.values],
+                textposition="auto",
+                textfont=dict(size=11, color="white"),
+            ))
+            fig4.update_layout(**dark_layout, height=380, showlegend=False)
+            fig4.update_xaxes(title="Net Amount in USD")
+            st.plotly_chart(fig4, use_container_width=True)
+        else:
+            st.info("No cost center data available.")
+
+    # ═══════════════════════════════════════════════════
+    # Row 3: Revenue Trend + Entity P&L Comparison
+    # ═══════════════════════════════════════════════════
+    c5, c6 = st.columns(2)
+
+    with c5:
+        st.markdown('<div class="dashboard-section-title">📈 Revenue Trend by Month</div>', unsafe_allow_html=True)
+        rev_by_month_entity = (
+            pl[pl["_category"] == "Revenue"]
+            .groupby(["Reporting Month", "Company Country"])[amt_col]
+            .sum().round(2)
+            .reset_index()
+        )
+        fig5 = go.Figure()
+        for i, company in enumerate(sorted(rev_by_month_entity["Company Country"].unique())):
+            comp_data = rev_by_month_entity[rev_by_month_entity["Company Country"] == company]
+            fig5.add_trace(go.Scatter(
+                x=comp_data["Reporting Month"],
+                y=comp_data[amt_col],
+                mode="lines+markers",
+                name=company,
+                line=dict(width=2.5, color=chart_colors[i % len(chart_colors)]),
+                marker=dict(size=8),
+            ))
+        fig5.update_layout(**dark_layout, height=380)
+        fig5.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=9)))
+        fig5.update_yaxes(title="Revenue (USD)")
+        st.plotly_chart(fig5, use_container_width=True)
+
+    with c6:
+        st.markdown('<div class="dashboard-section-title">🏦 Entity P&L Comparison</div>', unsafe_allow_html=True)
+        entity_pl = (
+            pl.groupby(["Company Country", "_category"])[amt_col]
+            .sum().round(2)
+            .reset_index()
+        )
+        entity_pl["_display_amt"] = entity_pl.apply(
+            lambda r: abs(r[amt_col]) if r["_category"] != "Revenue" else r[amt_col], axis=1
+        )
+        companies = sorted(entity_pl["Company Country"].unique())
+        fig6 = go.Figure()
+        for cat, color in [("Revenue", TEAL), ("COPS", ORANGE), ("Expenses", RED)]:
+            cat_data = entity_pl[entity_pl["_category"] == cat].set_index("Company Country").reindex(companies).fillna(0)
+            fig6.add_trace(go.Bar(
+                x=companies,
+                y=cat_data["_display_amt"].values if "_display_amt" in cat_data.columns else [0]*len(companies),
+                name=cat,
+                marker_color=color,
+                marker_cornerradius=4,
+            ))
+        fig6.update_layout(**dark_layout, height=380, barmode="group")
+        fig6.update_layout(
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+            xaxis=dict(tickangle=-30, tickfont=dict(size=10)),
+        )
+        fig6.update_yaxes(title="Amount (USD)")
+        st.plotly_chart(fig6, use_container_width=True)
 
 
 def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.DataFrame):
