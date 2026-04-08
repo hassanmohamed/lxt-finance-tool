@@ -9,7 +9,7 @@ consolidated Excel report.
 import base64
 import io
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -1712,13 +1712,20 @@ def main_app():
 
     # ── Date Inputs ───────────────────────────────────────────
     today = date.today()
-    first_of_month = today.replace(day=1)
+    first_of_this_month = today.replace(day=1)
+
+    if today.month == 1:
+        default_end = first_of_this_month - timedelta(days=1)
+        default_start = default_end.replace(month=1, day=1)
+    else:
+        default_end = first_of_this_month - timedelta(days=1)
+        default_start = today.replace(month=1, day=1)
 
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
-        start_date = st.date_input("📅 Start Date", value=first_of_month)
+        start_date = st.date_input("📅 Start Date", value=default_start)
     with col2:
-        end_date = st.date_input("📅 End Date", value=today)
+        end_date = st.date_input("📅 End Date", value=default_end)
 
     if start_date > end_date:
         st.error("Start date cannot be after end date.")
@@ -2732,9 +2739,13 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
 def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.DataFrame):
     """Execute the full ETL pipeline with progress UI."""
 
-    # Clear cached AI context so it rebuilds with new data
+    # Clear cached AI and pivot context so they rebuild with new data
     st.session_state.pop("financial_context", None)
     st.session_state.pop("messages", None)
+    st.session_state.pop("pivot_data", None)
+    st.session_state.pop("pivot_name", None)
+    st.session_state.pop("pivot_preview", None)
+    st.session_state.pop("pivot_rows", None)
 
     # Load credentials from secrets
     client_id = st.secrets["QB_CLIENT_ID"]
