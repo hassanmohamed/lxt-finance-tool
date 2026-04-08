@@ -2570,7 +2570,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
         ))
         fig1.update_layout(**dark_layout, height=350, title="", showlegend=False)
         fig1.update_xaxes(title="Amount in USD")
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width="stretch")
 
     with c2:
         st.markdown('<div class="dashboard-section-title">📊 Monthly P&L Breakdown</div>', unsafe_allow_html=True)
@@ -2603,7 +2603,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
         fig2.update_layout(**dark_layout, height=350, barmode="group")
         fig2.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
         fig2.update_yaxes(title="Amount in USD")
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
     # ═══════════════════════════════════════════════════
     # Row 2: Expense Breakdown + Cost Center Analysis
@@ -2642,7 +2642,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
             text=f"<b>${exp_by_stmt.sum():,.0f}</b><br><span style='font-size:10px;color:#8899A6'>Total Expenses</span>",
             showarrow=False, font=dict(size=14, color="#F0F2F6"),
         )
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, width="stretch")
 
     with c4:
         st.markdown('<div class="dashboard-section-title">🏢 Cost Center Analysis</div>', unsafe_allow_html=True)
@@ -2674,7 +2674,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
             ))
             fig4.update_layout(**dark_layout, height=380, showlegend=False)
             fig4.update_xaxes(title="Net Amount in USD")
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, width="stretch")
         else:
             st.info("No cost center data available.")
 
@@ -2705,7 +2705,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
         fig5.update_layout(**dark_layout, height=380)
         fig5.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=9)))
         fig5.update_yaxes(title="Revenue (USD)")
-        st.plotly_chart(fig5, use_container_width=True)
+        st.plotly_chart(fig5, width="stretch")
 
     with c6:
         st.markdown('<div class="dashboard-section-title">🏦 Entity P&L Comparison</div>', unsafe_allow_html=True)
@@ -2734,7 +2734,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
             xaxis=dict(tickangle=-30, tickfont=dict(size=10)),
         )
         fig6.update_yaxes(title="Amount (USD)")
-        st.plotly_chart(fig6, use_container_width=True)
+        st.plotly_chart(fig6, width="stretch")
 
 
 def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.DataFrame):
