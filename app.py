@@ -2547,8 +2547,9 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
 
     with c1:
         st.markdown('<div class="dashboard-section-title">💰 Revenue by Entity</div>', unsafe_allow_html=True)
+        rev_data = pl[(pl["_category"] == "Revenue") & (pl["Company Country"].notna()) & (pl["Company Country"].astype(str).str.strip() != "")]
         rev_by_company = (
-            pl[pl["_category"] == "Revenue"]
+            rev_data
             .groupby("Company Country")[amt_col]
             .sum().round(2)
             .sort_values(ascending=True)
@@ -2567,7 +2568,7 @@ def _render_financial_dashboard(master_df: pd.DataFrame) -> None:
             textposition="auto",
             textfont=dict(size=11, color="white"),
         ))
-        fig1.update_layout(**dark_layout, height=350, title=None, showlegend=False)
+        fig1.update_layout(**dark_layout, height=350, title="", showlegend=False)
         fig1.update_xaxes(title="Amount in USD")
         st.plotly_chart(fig1, use_container_width=True)
 
