@@ -7,10 +7,17 @@ consolidated Excel report.
 """
 
 import base64
+import html
 import io
 import os
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
+
+import bcrypt
+import logging
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 import requests
@@ -542,6 +549,68 @@ QB_BASE_URL = "https://quickbooks.api.intuit.com"
 # Path to the Streamlit secrets file (for auto-saving refresh tokens)
 SECRETS_PATH = Path(__file__).parent / ".streamlit" / "secrets.toml"
 
+
+def get_secret(key: str, default: str = "") -> str:
+    """Read a secret from Streamlit secrets (secrets.toml) or environment variables.
+
+    Works on all platforms:
+      - Local / Streamlit Cloud: reads from .streamlit/secrets.toml
+      - Render / Railway: reads from environment variables
+    """
+    try:
+        value = st.secrets.get(key, None)
+        if value is not None:
+            return value
+    except Exception:
+        pass
+    return os.environ.get(key, default)
+
+
+def _load_companies() -> dict:
+    """Load company credentials from secrets.toml or flat environment variables.
+
+    On Streamlit Cloud / local: reads nested [companies.xxx] from secrets.toml.
+    On Render / Railway: reads flat env vars (e.g. LXT_EGYPT_REALM_ID).
+    """
+    # Try Streamlit secrets first (nested TOML)
+    try:
+        companies = st.secrets.get("companies", None)
+        if companies is not None:
+            return dict(companies)
+    except Exception:
+        pass
+
+    # Fall back to flat environment variables
+    _COMPANY_ENV_KEYS = [
+        ("lxt_egypt",           "LXT_EGYPT"),
+        ("lxt_canada",          "LXT_CANADA"),
+        ("lxt_australia",       "LXT_AUSTRALIA"),
+        ("lxt_romania",         "LXT_ROMANIA"),
+        ("lxt_india",           "LXT_INDIA"),
+        ("lxt_germany",         "LXT_GERMANY"),
+        ("lxt_uk",              "LXT_UK"),
+        ("lxt_usa",             "LXT_USA"),
+        ("lxt_clickworker_usa", "LXT_CLICKWORKER_USA"),
+    ]
+
+    companies = {}
+    for company_key, env_prefix in _COMPANY_ENV_KEYS:
+        label = os.environ.get(f"{env_prefix}_LABEL", "")
+        realm_id = os.environ.get(f"{env_prefix}_REALM_ID", "")
+        refresh_token = os.environ.get(f"{env_prefix}_REFRESH_TOKEN", "")
+        if realm_id:
+            companies[company_key] = {
+                "label": label,
+                "realm_id": realm_id,
+                "refresh_token": refresh_token,
+            }
+
+    if companies:
+        return companies
+
+    logger.error("No company credentials found in secrets or environment.")
+    return {}
+
 # Company label → local currency (ISO codes)
 COMPANY_CURRENCY = {
     "LXT Egypt": "EGP",
@@ -637,6 +706,15 @@ QB_REPORT_COLUMNS = "account_name,tx_date,memo,name,txn_type,cust_name,vend_name
 def check_password() -> bool:
     """Show a login form and return True if authenticated."""
     if st.session_state.get("authenticated"):
+        # ── Session timeout (30 min inactivity) ──
+        max_idle = 1800  # seconds
+        now = time.time()
+        last_activity = st.session_state.get("last_activity", now)
+        if now - last_activity > max_idle:
+            st.session_state.clear()
+            st.warning("⏱️ Session expired due to inactivity. Please log in again.")
+            st.rerun()
+        st.session_state["last_activity"] = now
         return True
 
     # Background pattern
@@ -702,20 +780,55 @@ def check_password() -> bool:
             placeholder="Enter your password…",
             label_visibility="collapsed",
         )
+        # ── Brute-force protection ──
+        if "login_attempts" not in st.session_state:
+            st.session_state["login_attempts"] = 0
+            st.session_state["lockout_until"] = 0.0
+
+        now = time.time()
+        if now < st.session_state["lockout_until"]:
+            remaining = int(st.session_state["lockout_until"] - now)
+            mins, secs = divmod(remaining, 60)
+            st.error(
+                f"🔒 Too many failed attempts. "
+                f"Please try again in **{mins}m {secs}s**."
+            )
+            return False
+
         login_clicked = st.button("Login", width="stretch", type="primary")
 
         if login_clicked:
             if not username.strip():
                 st.error("❌ Please enter your email.")
             elif (
-                username.strip().lower() == st.secrets["APP_USERNAME"].lower()
-                and password == st.secrets["APP_PASSWORD"]
+                username.strip().lower() == get_secret("APP_USERNAME").lower()
+                and bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    get_secret("APP_PASSWORD_HASH").encode("utf-8"),
+                )
             ):
+                # Successful login — reset attempts
+                st.session_state["login_attempts"] = 0
+                st.session_state["lockout_until"] = 0.0
                 st.session_state["authenticated"] = True
-                st.session_state["username"] = username.strip()
+                st.session_state["username"] = html.escape(username.strip())
                 st.rerun()
             else:
-                st.error("❌ Incorrect email or password. Please try again.")
+                st.session_state["login_attempts"] += 1
+                attempts_left = 5 - st.session_state["login_attempts"]
+                if st.session_state["login_attempts"] >= 5:
+                    st.session_state["lockout_until"] = time.time() + 900  # 15 min
+                    st.error(
+                        "🔒 Too many failed attempts. "
+                        "Account locked for **15 minutes**."
+                    )
+                elif attempts_left > 0:
+                    st.error(
+                        f"❌ Incorrect email or password. "
+                        f"**{attempts_left}** attempt(s) remaining."
+                    )
+                else:
+                    st.error("❌ Incorrect email or password.")
 
     return False
 
@@ -761,7 +874,7 @@ GIST_API = "https://api.github.com/gists"
 
 def _get_github_headers() -> dict:
     """Return GitHub API headers using the token from secrets."""
-    token = st.secrets.get("GITHUB_TOKEN", "")
+    token = get_secret("GITHUB_TOKEN")
     return {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json",
@@ -776,8 +889,8 @@ def _find_token_gist() -> str | None:
             for gist in resp.json():
                 if GIST_FILENAME in gist.get("files", {}):
                     return gist["id"]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to find token Gist: %s", e)
     return None
 
 
@@ -794,8 +907,8 @@ def _load_gist_tokens() -> dict | None:
             import json
             content = resp.json()["files"][GIST_FILENAME]["content"]
             return json.loads(content)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to load tokens from Gist: %s", e)
     return None
 
 
@@ -826,8 +939,12 @@ def _save_gist_tokens(tokens: dict) -> None:
                 json=payload,
                 timeout=15,
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("⚠️ CRITICAL: Failed to save refresh tokens to Gist: %s", e)
+        st.warning(
+            f"⚠️ **Token save failed** — new refresh tokens could not be saved to Gist. "
+            f"Error: {e}. If this persists, you may lose access to QuickBooks."
+        )
 
 
 def _save_refresh_token(old_token: str, new_token: str) -> None:
@@ -843,8 +960,8 @@ def _save_refresh_token(old_token: str, new_token: str) -> None:
         if old_token in content:
             content = content.replace(old_token, new_token)
             SECRETS_PATH.write_text(content)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to update local secrets.toml: %s", e)
 
 
 def fetch_general_ledger(
@@ -1996,7 +2113,7 @@ def main_app():
                         from google import genai
                         from google.genai import types
 
-                        api_key = st.secrets.get("GOOGLE_API_KEY", "")
+                        api_key = get_secret("GOOGLE_API_KEY")
                         if not api_key or api_key == "your_api_key_here":
                             response = (
                                 "⚠️ **Google API Key not configured.** "
@@ -2748,10 +2865,10 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
     st.session_state.pop("pivot_preview", None)
     st.session_state.pop("pivot_rows", None)
 
-    # Load credentials from secrets
-    client_id = st.secrets["QB_CLIENT_ID"]
-    client_secret = st.secrets["QB_CLIENT_SECRET"]
-    companies = st.secrets["companies"]
+    # Load credentials from secrets / environment variables
+    client_id = get_secret("QB_CLIENT_ID")
+    client_secret = get_secret("QB_CLIENT_SECRET")
+    companies = _load_companies()
 
     # Load latest tokens from GitHub Gist (falls back to secrets.toml)
     gist_tokens = _load_gist_tokens() or {}
