@@ -800,13 +800,29 @@ def check_password() -> bool:
         if login_clicked:
             if not username.strip():
                 st.error("❌ Please enter your email.")
-            elif (
+                return False
+
+            # ── Validate credentials ──
+            username_ok = (
                 username.strip().lower() == get_secret("APP_USERNAME").lower()
-                and bcrypt.checkpw(
-                    password.encode("utf-8"),
-                    get_secret("APP_PASSWORD_HASH").encode("utf-8"),
-                )
-            ):
+            )
+            password_ok = False
+            if username_ok:
+                stored_hash = get_secret("APP_PASSWORD_HASH")
+                try:
+                    password_ok = bcrypt.checkpw(
+                        password.encode("utf-8"),
+                        stored_hash.encode("utf-8"),
+                    )
+                except (ValueError, TypeError) as exc:
+                    st.error(
+                        "⚠️ Password hash configuration error. "
+                        "Please verify that `APP_PASSWORD_HASH` in Streamlit secrets "
+                        "is a valid bcrypt hash (starts with `$2b$`)."
+                    )
+                    return False
+
+            if username_ok and password_ok:
                 # Successful login — reset attempts
                 st.session_state["login_attempts"] = 0
                 st.session_state["lockout_until"] = 0.0
