@@ -1278,14 +1278,20 @@ def _prev_months(year: int, month: int, count: int) -> list[tuple[int, int]]:
 
 def _classify_statements(master_df: pd.DataFrame) -> dict[str, str]:
     """
-    Classify each Statement into 'revenue', 'cops', 'expenses', or 'other'
-    based on the leading digit of its Account Numbers.
-      4xxxxx → revenue,  5xxxxx → cops,  6xxxxx → expenses
+    Classify each Statement into 'revenue', 'hrcops', 'cops', 'hrga',
+    'expenses', or 'other' based on name prefix or leading Account digit.
     """
     classification: dict[str, str] = {}
     for stmt in master_df["Statement"].dropna().unique():
         stmt_str = str(stmt).strip()
         if not stmt_str or stmt_str.lower() == "nan":
+            continue
+        # Name-based priority classification
+        if stmt_str.startswith("HR Cost-COPS"):
+            classification[stmt_str] = "hrcops"
+            continue
+        elif stmt_str.startswith("HR Cost-G&A"):
+            classification[stmt_str] = "hrga"
             continue
         stmt_df = master_df[master_df["Statement"] == stmt]
         acct_nums = stmt_df["Account Number"].dropna().astype(str).str.strip()
@@ -1359,29 +1365,51 @@ def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
     """
     Build the shared row hierarchy with calculated rows.
 
-    Order: Revenue stmts → COPS stmts → Gross Profit → GP% →
-           Expense stmts → Total Expenses → Other stmts
+    Order: Revenue stmts
+           -> HR Cost-COPS stmts -> Total HR Cost-COPS
+           -> Other COPS stmts
+           -> Gross Profit -> GP%
+           -> HR Cost-G&A stmts -> Total HR Cost-G&A
+           -> Other Expense stmts
+           -> Total Expenses
+           -> Other stmts
     """
     classification = _classify_statements(master_df)
     statements = master_df["Statement"].dropna().unique()
 
     # Group statements by category
-    revenue_stmts = [s for s in statements if classification.get(str(s).strip()) == "revenue"]
-    cops_stmts = [s for s in statements if classification.get(str(s).strip()) == "cops"]
-    expense_stmts = [s for s in statements if classification.get(str(s).strip()) == "expenses"]
-    other_stmts = [s for s in statements if classification.get(str(s).strip()) == "other"]
+    revenue_stmts  = [s for s in statements if classification.get(str(s).strip()) == "revenue"]
+    hrcops_stmts   = sorted([s for s in statements if classification.get(str(s).strip()) == "hrcops"], key=str)
+    cops_stmts     = [s for s in statements if classification.get(str(s).strip()) == "cops"]
+    hrga_stmts     = sorted([s for s in statements if classification.get(str(s).strip()) == "hrga"], key=str)
+    expense_stmts  = [s for s in statements if classification.get(str(s).strip()) == "expenses"]
+    other_stmts    = [s for s in statements if classification.get(str(s).strip()) == "other"]
 
     rows: list[dict] = []
 
-    # ── Revenue statements ──
+    # -- Revenue statements --
     for stmt in revenue_stmts:
         rows.extend(_build_statement_rows(master_df, stmt))
 
-    # ── COPS statements ──
+    # -- HR Cost-COPS statements --
+    for stmt in hrcops_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
+
+    # -- Total HR Cost-COPS --
+    if hrcops_stmts:
+        rows.append({
+            "Code": "",
+            "Description": "Total HR Cost-COPS",
+            "_style": "calculated",
+            "_statement": "__CALCULATED__",
+            "_mapping": "__TOTAL_HR_COPS__",
+        })
+
+    # -- Other COPS statements --
     for stmt in cops_stmts:
         rows.extend(_build_statement_rows(master_df, stmt))
 
-    # ── Gross Profit (Revenue - COPS) ──
+    # -- Gross Profit (Revenue - HR COPS - COPS) --
     rows.append({
         "Code": "4XXXXX - 5XXXXXX",
         "Description": "Gross Profit",
@@ -1390,7 +1418,7 @@ def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
         "_mapping": "__GROSS_PROFIT__",
     })
 
-    # ── GP% (Gross Profit / Revenue) ──
+    # -- GP% (Gross Profit / Revenue) --
     rows.append({
         "Code": "(4XXXXX - 5XXXXXX) / 4XXXXXX",
         "Description": "Gross Profit %",
@@ -1399,11 +1427,25 @@ def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
         "_mapping": "__GP_PCT__",
     })
 
-    # ── Expense statements ──
+    # -- HR Cost-G&A statements --
+    for stmt in hrga_stmts:
+        rows.extend(_build_statement_rows(master_df, stmt))
+
+    # -- Total HR Cost-G&A --
+    if hrga_stmts:
+        rows.append({
+            "Code": "",
+            "Description": "Total HR Cost-G&A",
+            "_style": "calculated",
+            "_statement": "__CALCULATED__",
+            "_mapping": "__TOTAL_HR_GA__",
+        })
+
+    # -- Other Expense statements --
     for stmt in expense_stmts:
         rows.extend(_build_statement_rows(master_df, stmt))
 
-    # ── Total Expenses ──
+    # -- Total Expenses (HR G&A + Other Expenses) --
     rows.append({
         "Code": "6XXXXXX",
         "Description": "Total Expenses",
@@ -1412,7 +1454,7 @@ def _build_row_index(master_df: pd.DataFrame) -> list[dict]:
         "_mapping": "__TOTAL_EXPENSES__",
     })
 
-    # ── Other statements (non-operating, etc.) ──
+    # -- Other statements (non-operating, etc.) --
     for stmt in other_stmts:
         rows.extend(_build_statement_rows(master_df, stmt))
 
@@ -1491,32 +1533,51 @@ def _compute_section_values(
                 return result
 
             if mapping == "__GROSS_PROFIT__":
-                rev = _cat_sum("revenue")
-                cops = _cat_sum("cops")
-                row_vals = {c: round(rev[c] - cops[c], 2) for c in col_names[:-1]}
+                rev    = _cat_sum("revenue")
+                hrcops = _cat_sum("hrcops")
+                cops   = _cat_sum("cops")
+                row_vals = {c: round(rev[c] - hrcops[c] - cops[c], 2) for c in col_names[:-1]}
                 row_vals[col_names[-1]] = round(
                     row_vals[col_names[0]] - row_vals[col_names[1]], 2
                 )
                 values[idx] = row_vals
 
             elif mapping == "__GP_PCT__":
-                rev = _cat_sum("revenue")
-                cops = _cat_sum("cops")
+                rev    = _cat_sum("revenue")
+                hrcops = _cat_sum("hrcops")
+                cops   = _cat_sum("cops")
                 row_vals = {}
                 for c in col_names[:-1]:
-                    gp = rev[c] - cops[c]
+                    gp = rev[c] - hrcops[c] - cops[c]
                     row_vals[c] = f"{(gp / rev[c] * 100):.1f}%" if rev[c] != 0 else "0.0%"
-                # Variance for GP% — difference in percentage points
-                gp_latest = (rev[col_names[0]] - cops[col_names[0]])
-                gp_prev = (rev[col_names[1]] - cops[col_names[1]])
+                # Variance for GP% -- difference in percentage points
+                gp_latest = rev[col_names[0]] - hrcops[col_names[0]] - cops[col_names[0]]
+                gp_prev   = rev[col_names[1]] - hrcops[col_names[1]] - cops[col_names[1]]
                 pct_latest = (gp_latest / rev[col_names[0]] * 100) if rev[col_names[0]] != 0 else 0
-                pct_prev = (gp_prev / rev[col_names[1]] * 100) if rev[col_names[1]] != 0 else 0
+                pct_prev   = (gp_prev   / rev[col_names[1]] * 100) if rev[col_names[1]] != 0 else 0
                 row_vals[col_names[-1]] = f"{(pct_latest - pct_prev):.1f}pp"
                 values[idx] = row_vals
 
+            elif mapping == "__TOTAL_HR_COPS__":
+                hrcops = _cat_sum("hrcops")
+                row_vals = {c: round(hrcops[c], 2) for c in col_names[:-1]}
+                row_vals[col_names[-1]] = round(
+                    row_vals[col_names[0]] - row_vals[col_names[1]], 2
+                )
+                values[idx] = row_vals
+
+            elif mapping == "__TOTAL_HR_GA__":
+                hrga = _cat_sum("hrga")
+                row_vals = {c: round(hrga[c], 2) for c in col_names[:-1]}
+                row_vals[col_names[-1]] = round(
+                    row_vals[col_names[0]] - row_vals[col_names[1]], 2
+                )
+                values[idx] = row_vals
+
             elif mapping == "__TOTAL_EXPENSES__":
-                exp = _cat_sum("expenses")
-                row_vals = {c: round(exp[c], 2) for c in col_names[:-1]}
+                hrga = _cat_sum("hrga")
+                exp  = _cat_sum("expenses")
+                row_vals = {c: round(hrga[c] + exp[c], 2) for c in col_names[:-1]}
                 row_vals[col_names[-1]] = round(
                     row_vals[col_names[0]] - row_vals[col_names[1]], 2
                 )
@@ -1529,6 +1590,7 @@ def build_pivot_report(
     master_df: pd.DataFrame,
     selected_year: int,
     selected_month: int,
+    split_ops50: bool = False,
 ) -> tuple[pd.DataFrame, list[dict], list[str], list[tuple[str, list[str]]]]:
     """
     Build the full horizontal pivot P&L report.
@@ -1581,8 +1643,16 @@ def build_pivot_report(
     cost_centers = pl_df["CostCenter"].dropna().astype(str).str.strip()
     cost_centers = sorted(cost_centers[cost_centers != ""].unique())
     for cc in cost_centers:
-        cc_df = pl_df[pl_df["CostCenter"].astype(str).str.strip() == cc]
-        all_values.append(add_section(cc_df, f"CC: {cc}"))
+        if split_ops50 and cc == "OPS50":
+            cc_sub_df = pl_df[pl_df["CostCenter"].astype(str).str.strip() == "OPS50"]
+            sub_classes = cc_sub_df["Class full name"].dropna().astype(str).str.strip()
+            sub_classes = sorted(sub_classes[sub_classes != ""].unique())
+            for sc in sub_classes:
+                sc_df = cc_sub_df[cc_sub_df["Class full name"].astype(str).str.strip() == sc]
+                all_values.append(add_section(sc_df, f"CC: {sc}"))
+        else:
+            cc_df = pl_df[pl_df["CostCenter"].astype(str).str.strip() == cc]
+            all_values.append(add_section(cc_df, f"CC: {cc}"))
 
     # Build final rows
     all_columns = ["Code", "Description"] + all_section_cols
@@ -1632,7 +1702,7 @@ def pivot_to_excel_bytes(
     ws = wb.active
     ws.title = "Pivot P&L Report"
 
-    # ── Styles ──
+    # -- Styles --
     section_font = Font(bold=True, size=11, color="FFFFFF")
     section_fill = PatternFill(start_color="2D2D44", end_color="2D2D44", fill_type="solid")
     group_font = Font(bold=True, size=10, color="1B3A5C")
@@ -1657,8 +1727,7 @@ def pivot_to_excel_bytes(
         bottom=Side(style="thin", color="CCCCCC"),
     )
 
-    # ── Row 1: Section group headers (merged) ──
-    # Code + Description stay empty on row 1
+    # -- Row 1: Section group headers (merged) --
     ws.cell(row=1, column=1, value="Code").font = header_font
     ws.cell(row=1, column=1).fill = header_fill
     ws.cell(row=1, column=1).alignment = center_align
@@ -1672,7 +1741,6 @@ def pivot_to_excel_bytes(
         start_col = col_offset
         end_col = col_offset + len(sec_cols) - 1
 
-        # Merge section header
         ws.merge_cells(
             start_row=1, start_column=start_col,
             end_row=1, end_column=end_col
@@ -1684,7 +1752,7 @@ def pivot_to_excel_bytes(
 
         col_offset += len(sec_cols)
 
-    # ── Row 2: Month sub-headers ──
+    # -- Row 2: Month sub-headers --
     ws.cell(row=2, column=1, value="").fill = header_fill
     ws.cell(row=2, column=2, value="").fill = header_fill
 
@@ -1692,21 +1760,15 @@ def pivot_to_excel_bytes(
     for sec_idx, (sec_label, sec_cols) in enumerate(section_groups):
         for i, col_name in enumerate(sec_cols):
             cell = ws.cell(row=2, column=col_offset + i)
-            # Extract the sub-label (remove the section prefix)
-            parts = col_name.split(" ", 1)
-            if len(parts) > 1:
-                # Remove the prefix before the month label
-                prefix = sec_label + " "
-                sub_label = col_name[len(prefix):] if col_name.startswith(prefix) else col_name
-            else:
-                sub_label = col_name
+            prefix = sec_label + " "
+            sub_label = col_name[len(prefix):] if col_name.startswith(prefix) else col_name
             cell.value = sub_label
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = center_align
         col_offset += len(sec_cols)
 
-    # ── Data rows (starting row 3) ──
+    # -- Data rows (starting row 3) --
     for row_idx, row_data in enumerate(rows, start=3):
         style = row_data.get("_style", "detail")
 
@@ -1731,13 +1793,13 @@ def pivot_to_excel_bytes(
                 cell.number_format = num_fmt
                 cell.alignment = right_align
 
-    # ── Column widths ──
+    # -- Column widths --
     ws.column_dimensions["A"].width = 12
     ws.column_dimensions["B"].width = 38
     for col_idx in range(3, len(columns) + 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = 15
 
-    # Freeze panes: freeze Code + Description columns and the 2 header rows
+    # Freeze panes
     ws.freeze_panes = "C3"
 
     buf = io.BytesIO()
@@ -2004,12 +2066,13 @@ def main_app():
                 latest = max(parsed_months, key=lambda t: (t[0], t[1]))
                 pivot_year, pivot_month = latest
 
-                with st.spinner("Building pivot report…"):
-                    display_df, raw_rows, all_columns, section_groups = build_pivot_report(
-                        mdf, pivot_year, pivot_month,
-                    )
+                with st.spinner("Building pivot report..."):
                     _m_tuples = _prev_months(pivot_year, pivot_month, 3)
                     _m_labels = [_cal_auto.month_abbr[m] + f" {y}" for y, m in _m_tuples]
+
+                    display_df, raw_rows, all_columns, section_groups = build_pivot_report(
+                        mdf, pivot_year, pivot_month, split_ops50=True
+                    )
 
                     pivot_xlsx = pivot_to_excel_bytes(
                         raw_rows, all_columns, section_groups, _m_labels
