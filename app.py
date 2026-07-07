@@ -1313,6 +1313,17 @@ def _classify_statements(master_df: pd.DataFrame) -> dict[str, str]:
     return classification
 
 
+def _normalize_account_code(series: pd.Series) -> pd.Series:
+    """Return a normalized account-code string without trailing .0 and other noise."""
+    return (
+        series.astype(str)
+        .str.strip()
+        .str.replace(r"\.0$", "", regex=True)
+        .str.extract(r"^(\d+)", expand=False)
+        .str.strip()
+    )
+
+
 def _build_statement_rows(master_df: pd.DataFrame, stmt) -> list[dict]:
     """Build group header + detail lines + total row for a single Statement."""
     stmt_str = str(stmt).strip()
@@ -1494,13 +1505,44 @@ def _compute_section_values(
 
         if style == "detail" and mapping is not None:
             row_vals = {}
+
+            # Restrict the aggregation to rows whose account code matches the
+            # account numbers attached to this mapping. This prevents unrelated rows
+            # (for example AP / FX / other bank-charge-like entries) from being
+            # pulled into the same detail line just because they share the same
+            # mapping label.
+            mapping_df = df[(df["Statement"] == stmt) & (df["Mapping"] == mapping)]
+            allowed_codes = []
+            if "Account Number" in mapping_df.columns:
+                allowed_codes = [
+                    code for code in _normalize_account_code(mapping_df["Account Number"]).dropna().astype(str).tolist()
+                    if code
+                ]
+            if not allowed_codes and "Distribution account" in mapping_df.columns:
+                allowed_codes = [
+                    code for code in _normalize_account_code(mapping_df["Distribution account"]).dropna().astype(str).tolist()
+                    if code
+                ]
+
             for i, mk in enumerate(month_keys):
                 cn = col_names[i]
-                mask = (
+                base_mask = (
                     (df["Statement"] == stmt)
                     & (df["Mapping"] == mapping)
                     & (df["Reporting Month"] == mk)
                 )
+                if allowed_codes:
+                    account_code_mask = _normalize_account_code(df.get("Account Number", pd.Series([""] * len(df))))
+                    if "Distribution account" in df.columns:
+                        account_code_mask = account_code_mask.fillna("")
+                        dist_mask = _normalize_account_code(df["Distribution account"]).fillna("")
+                        account_code_mask = account_code_mask.isin(allowed_codes) | dist_mask.isin(allowed_codes)
+                    else:
+                        account_code_mask = account_code_mask.isin(allowed_codes)
+                    mask = base_mask & account_code_mask
+                else:
+                    mask = base_mask
+
                 val = df.loc[mask, "Amount in USD (Reporting Currency)"].sum()
                 row_vals[cn] = round(val, 2)
 
