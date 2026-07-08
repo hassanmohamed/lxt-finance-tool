@@ -3054,8 +3054,14 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
                 new_refresh = token_info["refresh_token"]
                 updated_tokens[key] = new_refresh
 
-                # Also save locally (best-effort)
+                # Persist the rotation IMMEDIATELY. QuickBooks single-use
+                # refresh tokens rotate on every refresh, so if a later step
+                # in this run crashes we must not lose the new token. Merge
+                # into the full token map so other companies aren't dropped.
                 if new_refresh != used_token:
+                    gist_tokens[key] = new_refresh
+                    _save_gist_tokens(gist_tokens)
+                    # Also save locally (best-effort)
                     _save_refresh_token(used_token, new_refresh)
 
                 with status_container:
@@ -3088,8 +3094,11 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
         )
 
     # ── Save updated tokens to GitHub Gist ─────────────────────
+    # Merge over the full existing map so companies that failed (or were
+    # skipped) this run keep their previously-good tokens instead of being
+    # wiped from the gist.
     if updated_tokens:
-        _save_gist_tokens(updated_tokens)
+        _save_gist_tokens({**gist_tokens, **updated_tokens})
 
     # ── Results ───────────────────────────────────────────────
     st.divider()
