@@ -9,7 +9,6 @@ consolidated Excel report.
 import base64
 import html
 import io
-import os
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -551,28 +550,18 @@ SECRETS_PATH = Path(__file__).parent / ".streamlit" / "secrets.toml"
 
 
 def get_secret(key: str, default: str = "") -> str:
-    """Read a secret from Streamlit secrets (secrets.toml) or environment variables.
-
-    Works on all platforms:
-      - Local / Streamlit Cloud: reads from .streamlit/secrets.toml
-      - Render / Railway: reads from environment variables
-    """
+    """Read a secret from Streamlit secrets (.streamlit/secrets.toml)."""
     try:
         value = st.secrets.get(key, None)
         if value is not None:
             return value
     except Exception:
         pass
-    return os.environ.get(key, default)
+    return default
 
 
 def _load_companies() -> dict:
-    """Load company credentials from secrets.toml or flat environment variables.
-
-    On Streamlit Cloud / local: reads nested [companies.xxx] from secrets.toml.
-    On Render / Railway: reads flat env vars (e.g. LXT_EGYPT_REALM_ID).
-    """
-    # Try Streamlit secrets first (nested TOML)
+    """Load company credentials from the nested [companies.*] tables in secrets.toml."""
     try:
         companies = st.secrets.get("companies", None)
         if companies is not None:
@@ -580,35 +569,7 @@ def _load_companies() -> dict:
     except Exception:
         pass
 
-    # Fall back to flat environment variables
-    _COMPANY_ENV_KEYS = [
-        ("lxt_egypt",           "LXT_EGYPT"),
-        ("lxt_canada",          "LXT_CANADA"),
-        ("lxt_australia",       "LXT_AUSTRALIA"),
-        ("lxt_romania",         "LXT_ROMANIA"),
-        ("lxt_india",           "LXT_INDIA"),
-        ("lxt_germany",         "LXT_GERMANY"),
-        ("lxt_uk",              "LXT_UK"),
-        ("lxt_usa",             "LXT_USA"),
-        ("lxt_clickworker_usa", "LXT_CLICKWORKER_USA"),
-    ]
-
-    companies = {}
-    for company_key, env_prefix in _COMPANY_ENV_KEYS:
-        label = os.environ.get(f"{env_prefix}_LABEL", "")
-        realm_id = os.environ.get(f"{env_prefix}_REALM_ID", "")
-        refresh_token = os.environ.get(f"{env_prefix}_REFRESH_TOKEN", "")
-        if realm_id:
-            companies[company_key] = {
-                "label": label,
-                "realm_id": realm_id,
-                "refresh_token": refresh_token,
-            }
-
-    if companies:
-        return companies
-
-    logger.error("No company credentials found in secrets or environment.")
+    logger.error("No company credentials found in .streamlit/secrets.toml.")
     return {}
 
 # Company label → local currency (ISO codes)
@@ -882,102 +843,51 @@ def refresh_access_token(
     }
 
 # ═══════════════════════════════════════════════════════════════
-# GitHub Gist — Persistent Token Storage
+# Persistent Token Storage — .streamlit/secrets.toml
 # ═══════════════════════════════════════════════════════════════
-GIST_FILENAME = "lxt_qb_tokens.json"
-GIST_API = "https://api.github.com/gists"
-
-
-def _get_github_headers() -> dict:
-    """Return GitHub API headers using the token from secrets."""
-    token = get_secret("GITHUB_TOKEN")
-    return {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-
-
-def _find_token_gist() -> str | None:
-    """Find the existing private gist ID by filename, or return None."""
-    try:
-        resp = requests.get(GIST_API, headers=_get_github_headers(), timeout=15)
-        if resp.status_code == 200:
-            for gist in resp.json():
-                if GIST_FILENAME in gist.get("files", {}):
-                    return gist["id"]
-    except Exception as e:
-        logger.warning("Failed to find token Gist: %s", e)
-    return None
-
-
-def _load_gist_tokens() -> dict | None:
-    """Load refresh tokens from the private gist. Returns dict {company_key: token}."""
-    gist_id = _find_token_gist()
-    if not gist_id:
-        return None
-    try:
-        resp = requests.get(
-            f"{GIST_API}/{gist_id}", headers=_get_github_headers(), timeout=15
-        )
-        if resp.status_code == 200:
-            import json
-            content = resp.json()["files"][GIST_FILENAME]["content"]
-            return json.loads(content)
-    except Exception as e:
-        logger.warning("Failed to load tokens from Gist: %s", e)
-    return None
-
-
-def _save_gist_tokens(tokens: dict) -> None:
-    """Create or update the private gist with current tokens."""
-    import json
-    payload = {
-        "description": "LXT QuickBooks refresh tokens (auto-managed)",
-        "files": {
-            GIST_FILENAME: {"content": json.dumps(tokens, indent=2)}
-        },
-    }
-    try:
-        gist_id = _find_token_gist()
-        headers = _get_github_headers()
-        if gist_id:
-            requests.patch(
-                f"{GIST_API}/{gist_id}",
-                headers=headers,
-                json=payload,
-                timeout=15,
-            )
-        else:
-            payload["public"] = False
-            requests.post(
-                GIST_API,
-                headers=headers,
-                json=payload,
-                timeout=15,
-            )
-    except Exception as e:
-        logger.error("⚠️ CRITICAL: Failed to save refresh tokens to Gist: %s", e)
-        st.warning(
-            f"⚠️ **Token save failed** — new refresh tokens could not be saved to Gist. "
-            f"Error: {e}. If this persists, you may lose access to QuickBooks."
-        )
-
-
+# QuickBooks refresh tokens are single-use: every refresh returns a new
+# token and invalidates the old one. secrets.toml is the ONLY store, so
+# a failed write means losing access to that company until the OAuth
+# consent flow is run again — hence the loud warnings below.
 def _save_refresh_token(old_token: str, new_token: str) -> None:
     """
-    Replace the old refresh token with the new one in secrets.toml (local).
+    Replace the old refresh token with the new one in secrets.toml.
     This ensures the next run uses the latest single-use token.
     """
-    if old_token == new_token or not SECRETS_PATH.exists():
+    if old_token == new_token:
+        return
+
+    if not SECRETS_PATH.exists():
+        logger.error("CRITICAL: %s does not exist — cannot persist rotated token.", SECRETS_PATH)
+        st.warning(
+            f"⚠️ **Token save failed** — `{SECRETS_PATH}` does not exist, so the new "
+            f"QuickBooks refresh token could not be saved. The next run will fail to "
+            f"authenticate this company."
+        )
         return
 
     try:
         content = SECRETS_PATH.read_text()
-        if old_token in content:
-            content = content.replace(old_token, new_token)
-            SECRETS_PATH.write_text(content)
+        if old_token not in content:
+            logger.error(
+                "CRITICAL: old refresh token not found in %s — rotated token not saved.",
+                SECRETS_PATH,
+            )
+            st.warning(
+                "⚠️ **Token save failed** — the previous refresh token was not found in "
+                "`secrets.toml`, so the rotated token could not be written. The next run "
+                "will fail to authenticate this company."
+            )
+            return
+
+        SECRETS_PATH.write_text(content.replace(old_token, new_token))
     except Exception as e:
-        logger.warning("Failed to update local secrets.toml: %s", e)
+        logger.error("CRITICAL: Failed to save rotated refresh token: %s", e)
+        st.warning(
+            f"⚠️ **Token save failed** — the new QuickBooks refresh token could not be "
+            f"written to `secrets.toml`. Error: {e}. If this persists you will lose "
+            f"access to QuickBooks."
+        )
 
 
 def fetch_general_ledger(
@@ -2986,14 +2896,10 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
     st.session_state.pop("pivot_preview", None)
     st.session_state.pop("pivot_rows", None)
 
-    # Load credentials from secrets / environment variables
+    # Load credentials from secrets.toml
     client_id = get_secret("QB_CLIENT_ID")
     client_secret = get_secret("QB_CLIENT_SECRET")
     companies = _load_companies()
-
-    # Load latest tokens from GitHub Gist (falls back to secrets.toml)
-    gist_tokens = _load_gist_tokens() or {}
-    updated_tokens: dict[str, str] = {}
 
     all_frames: list[pd.DataFrame] = []
     errors: list[str] = []
@@ -3011,8 +2917,7 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
             company = companies[key]
             label = company["label"]
             realm_id = company["realm_id"]
-            # Prefer gist token, fall back to secrets.toml
-            refresh_token = gist_tokens.get(key, company["refresh_token"])
+            used_token = company["refresh_token"]
 
             progress.progress(
                 (idx) / total,
@@ -3023,46 +2928,15 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
                 with status_container:
                     st.write(f"🔄 **{label}** — Authenticating…")
 
-                # Auth — try gist token first, fall back to secrets.toml
-                token_info = None
-                secrets_token = company["refresh_token"]
-                used_token = refresh_token
-                try:
-                    token_info = refresh_access_token(
-                        client_id, client_secret, refresh_token
-                    )
-                except RuntimeError as auth_err:
-                    # If gist token failed and we have a different secrets.toml token, retry
-                    if (
-                        "invalid_grant" in str(auth_err)
-                        and secrets_token
-                        and secrets_token != refresh_token
-                    ):
-                        with status_container:
-                            st.write(
-                                f"⚠️ **{label}** — Gist token expired, "
-                                f"retrying with secrets.toml token…"
-                            )
-                        token_info = refresh_access_token(
-                            client_id, client_secret, secrets_token
-                        )
-                        used_token = secrets_token
-                    else:
-                        raise
-
-                # Track the new refresh token
-                new_refresh = token_info["refresh_token"]
-                updated_tokens[key] = new_refresh
+                token_info = refresh_access_token(
+                    client_id, client_secret, used_token
+                )
 
                 # Persist the rotation IMMEDIATELY. QuickBooks single-use
                 # refresh tokens rotate on every refresh, so if a later step
-                # in this run crashes we must not lose the new token. Merge
-                # into the full token map so other companies aren't dropped.
-                if new_refresh != used_token:
-                    gist_tokens[key] = new_refresh
-                    _save_gist_tokens(gist_tokens)
-                    # Also save locally (best-effort)
-                    _save_refresh_token(used_token, new_refresh)
+                # in this run crashes we must not lose the new token.
+                new_refresh = token_info["refresh_token"]
+                _save_refresh_token(used_token, new_refresh)
 
                 with status_container:
                     st.write(f"📥 **{label}** — Fetching General Ledger…")
@@ -3092,13 +2966,6 @@ def _run_etl(start_date: str, end_date: str, forex_rates: dict, mapping_df: pd.D
         status_container.update(
             label="Processing complete!", state="complete", expanded=False
         )
-
-    # ── Save updated tokens to GitHub Gist ─────────────────────
-    # Merge over the full existing map so companies that failed (or were
-    # skipped) this run keep their previously-good tokens instead of being
-    # wiped from the gist.
-    if updated_tokens:
-        _save_gist_tokens({**gist_tokens, **updated_tokens})
 
     # ── Results ───────────────────────────────────────────────
     st.divider()

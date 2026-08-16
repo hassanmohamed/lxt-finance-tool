@@ -1,9 +1,12 @@
-.env
-render.env
-.streamlit/
+# Real secrets. The theme (.streamlit/config.toml) IS tracked, and
+# secrets.toml.example is the template to copy.
+.streamlit/secrets.toml
+
+# Generated reports
+*.xlsx
+
+# Python
 __pycache__/
 *.pyc
-*.xlsx
 venv/
 .venv/
-reports/
